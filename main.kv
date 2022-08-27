@@ -1,0 +1,334 @@
+#:kivy 1.0
+
+#:import Calendar calendar.Calendar
+#:import Datetime datetime.datetime
+#:import Timedelta dateutil.relativedelta.relativedelta
+#:import NoTransition kivy.uix.screenmanager.NoTransition
+#:import Window kivy.core.window.Window
+
+<NoteView>:
+    id: noteView
+    on_content: app.save_note(self.filepath, self.content)
+    canvas:
+        Color:
+            rgba: app.bg_color
+        Rectangle:
+            pos: self.pos
+            size: self.size 
+    size_hint: 1,1
+    ScrollView:
+        size_hint: 1, 1
+        id: scrlv
+        MDInput:
+            size_hint: 1,None
+            id: w_textinput
+            padding:dp(10)
+            text: root.content
+            font_size: sp(14)
+            on_text: root.content = self.text
+            multiline: True
+            background_color: app.editor_bgcolor
+            foreground_color: app.editor_textcolor
+            style: app.editor_pygments_style
+            unfocus_on_touch: False
+            auto_indent: True
+            replace_crlf: True
+            height: max( (len(self._lines)+1) * self.line_height +dp(48), scrlv.height)
+
+<CircularButton>:
+    text: ''
+    font_name: 'Roboto'
+    font_size: '18sp'
+    color: .8, .2, .2, 1
+    angle:0
+    canvas.before:
+        PushMatrix
+        Color:
+            rgba: root.color
+        Ellipse:
+            pos: self.pos
+            size: self.size
+        Rotate:
+            angle: root.angle
+            origin: self.center
+
+<AwesomeCircularButton@CircularButton>:
+    font_name:"awesome"
+    font_size:"16sp"
+    size_hint: None, None
+    size: dp(48), dp(48)
+    
+<LabelButton@ButtonBehavior+Label>:
+    bg_color: app.header_bg_color
+    canvas.before:
+        Color:
+            rgba: self.bg_color if self.bg_color else (.9,.9,.9,1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    text:""
+    color: app.primary_color
+    size_hint:1,1
+
+    disabled: True if self.text == "" else False
+        
+<Day@ButtonBehavior+Label>:
+    canvas.before:
+        Color:
+            rgba: app.bg_color if self.text != str(app.current_date.day) else app.second_accent_bg_color
+        Ellipse:
+            pos: (self.pos[0] + self.size[0]/2) - (self.size[1]/2), self.pos[1]
+            size: self.size[1], self.size[1]
+   
+    text:""
+    datepicker: root.parent.parent
+    color: app.second_accent_color if self.text == str(app.current_date.day) else app.primary_color
+    size_hint:1,1
+    background_color: app.bg_color
+    disabled: True if self.text == "" else False
+    on_release:
+        app.current_date = app.current_date.replace(day=int(self.text)) 
+
+<DayLabel@Label>:
+    canvas.before:
+        Color:
+            rgba: app.bg_color 
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    text:""
+    datepicker: root.parent.parent
+    color: app.primary_color
+    size_hint:1,1
+    background_color: app.bg_color
+
+<Week@BoxLayout>:
+    datepicker: root.parent
+    weekdays: ["","","","","","",""]
+    Day:
+        text: str(root.weekdays[0])
+    Day:
+        text: str(root.weekdays[1])
+    Day:
+        text: str(root.weekdays[2])
+    Day:
+        text: str(root.weekdays[3])
+    Day:
+        text: str(root.weekdays[4])
+    Day:
+        text: str(root.weekdays[5])
+    Day:
+        text: str(root.weekdays[6])
+
+<WeekDays@BoxLayout>:
+    DayLabel:
+        text: "Mon"
+    DayLabel:
+        text: "Tue"
+    DayLabel:
+        text: "Wed"
+    DayLabel:
+        text: "Thu"
+    DayLabel:
+        text: "Fri"
+    DayLabel:
+        text: "Sat"
+    DayLabel:
+        text: "Sun"
+
+<NavBar@BoxLayout>:
+    datepicker: self.parent
+    LabelButton:
+        text: "<"
+        on_release:
+            app.current_date -= Timedelta(months=1)
+    LabelButton:
+        text: Datetime.strftime(app.current_date,"%d %b %Y")
+        on_release:
+            app.current_date = Datetime.now().date()
+    LabelButton:
+        text: ">"
+        on_release:
+            app.current_date += Timedelta(months=1)        
+ 
+<DatePicker@BoxLayout>:
+    months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    calendar: Calendar()
+    days: [(i if i > 0 else "") for i in self.calendar.itermonthdays(app.current_date.year, app.current_date.month)] + [""] * 14
+    event_busy_days: app.event_busy_days
+    journal_busy_days: app.journal_busy_days
+    orientation: "vertical"
+    NavBar:
+    WeekDays:
+    Week:
+        weekdays: root.days[0:7]
+    Week:
+        weekdays: root.days[7:14]
+    Week:
+        weekdays: root.days[14:21]
+    Week:
+        weekdays: root.days[21:28]
+    Week:
+        weekdays: root.days[28:35]
+    Week:
+        weekdays: root.days[35:]
+
+<MOrgRecycleView>:
+    viewclass: 'MOrgListItem'
+    SelectableRecycleBoxLayout
+        default_size: None, dp(32) 
+        default_size_hint: 1, None
+        size_hint_y: None
+        height: self.minimum_height
+        orientation: 'vertical'
+        scroll_y: 0        
+
+<MOrgListItem>:
+    height: dp(32) if root.itemtype!=0 else dp(42)
+    padding: dp(10), dp(0), dp(0), dp(10)
+    size_hint: 1, None
+    #on_selected: app.inverse_todo(root.index, root.selected)
+    on_release: app.edit(root.index, root.selected)
+    canvas:
+        Color:
+            rgba: app.listitem_selected_bgcolor if root.itemtype==0 else app.listitem_bgcolor
+        Rectangle:
+            pos: self.pos
+            size: self.size 
+    BoxLayout:
+        size_hint: 1, 1
+        orientation: 'horizontal'
+        Label:
+            font_name:"awesome"
+            font_size:"16sp"
+            size_hint: None, None
+            size: (dp(24), dp(24)) if root.itemtype!=0 else (0,0)
+            text: "" if root.itemtype == 0 else ("\uf111" if root.itemtype == 1 else ("\uf133" if root.itemtype == 2 else ("\uf1ea" if root.itemtype==3 else "\uf249")))
+            pos_hint: {'center_y': 0.5}
+            color: app.listitem_selected_icon_color if root.selected else app.listitem_icon_color
+            
+        Widget:
+            size_hint: None, 1
+            width: dp(10) if root.itemtype != 0 else dp(0)
+        Label:
+            text: root.when + "\n" + root.description if root.itemtype ==2 else root.description
+            halign: 'left'
+            size_hint: 1, 1 
+            text_size: self.size
+            color: app.listitem_selected_color if root.selected else app.listitem_color
+            font_size: sp(24) if root.itemtype == 0 else sp(14)
+            valign: 'middle'
+            halign: 'left'
+
+<Page>:
+    canvas.before:
+        Color:
+            rgba: app.bg_color
+        Rectangle:
+            pos: self.pos
+            size: self.size
+            
+
+<ToggleLabel>
+    group: "type"
+    size_hint: (1,None)
+    color: app.primary_color
+    canvas.before:
+        Color:
+            rgba: app.accent_bg_color if self.state == "down" else app.bg_color
+        Rectangle:
+            pos: self.pos
+            size: self.size 
+ 
+ScreenManager:
+    id: sm
+    name: "sm"
+    transition: NoTransition()
+    canvas.before:
+        Color:
+            rgba: app.bg_color
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    pos: 0, app.keyboard_height
+    height: Window.height - app.keyboard_height
+    size_hint: 1, None
+
+    Page:
+        id: main
+        name: 'main'
+        size_hint: 1,1
+
+        ScrollView:
+            id: scrollview
+
+            BoxLayout:
+                orientation: "vertical"
+                DatePicker:
+                    id: test
+                    color: "white"
+                    size_hint: 1, 0.5
+
+                MOrgRecycleView:
+                    id: rv
+                    data: app.current_items 
+        
+
+        AwesomeCircularButton:
+            color: .9,.2, .2, 1
+            pos: self.parent.width - dp(80), dp(16) 
+            size_hint: None, None
+            font_size: "24sp"
+            text: '\uf271'
+            height: '64dp'
+            width: '64dp'
+            on_release: app.add()
+
+    Page:
+        id: append_page
+        name : 'append'
+        size_hint: 1,1
+
+        BoxLayout:
+            size_hint: 1,1
+            orientation: 'vertical'
+            
+            MTextInput: 
+                id: append_input
+                size_hint: 1,1
+                focus: False
+     
+            ToggleLabel:
+                text: "Todo"
+                id: append_todo
+            ToggleLabel:
+                text: "Event"
+                id: append_event
+            ToggleLabel:
+                text: "Journal"
+                id: append_journal
+            ToggleLabel:
+                text: "Expense"
+                id: append_expense
+            ToggleLabel:
+                text: "QuickNote"
+                id: append_quicknote
+ 
+        AwesomeCircularButton:
+            color: .9,.2, .2, 1
+            pos: self.parent.width - dp(80), dp(16) 
+            size_hint: None, None
+            font_size: "24sp"
+            text: '\uf271'
+            height: '64dp'
+            width: '64dp'
+            on_release: app.do_add()
+
+       
+    NoteView:
+        id: editor
+        name: "editor"
+        size_hint: 1,1
+
