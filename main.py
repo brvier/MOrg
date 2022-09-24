@@ -1,8 +1,14 @@
 """
 MOrg
 
-Your life in plain text, your future proof agenda, task, journal and notes.
+A future proof opinionated software to manage your life in plaintext : todo, agenda, journal and notes.
 """
+__author__ = "Benoît HERVIER"
+__copyright__ = "Copyright 2022, Benoît HERVIER"
+__license__ = "MIT"
+__version__ = "0.1.0"
+__email__ = "b@rvier.fr"
+__status__ = "Developpment"
 
 import kivy
 
@@ -44,7 +50,7 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.behaviors import ToggleButtonBehavior
 
 from pygments.lexers.markup import MarkdownLexer
-from styles import GithubStyle
+from styles import GithubStyle, GruvboxDarkStyle
 
 if platform == "android":
     import android
@@ -61,6 +67,10 @@ EVENT_RE = re.compile(
 )
 TIME_FMT = "%H:%M"
 DATE_FMT = "%Y-%m-%d"
+
+
+def rgba(r, g, b, a):
+    return r / 255, g / 255, b / 255, a
 
 
 def get_android_vkeyboard_height():
@@ -118,7 +128,7 @@ class Todo(Item):
 
 class CircularButton(
     ButtonBehavior,
-    Widget,
+    Label,
 ):
     def collide_point(self, x, y):
         return Vector(x, y).distance(self.center) <= self.width / 2
@@ -138,6 +148,7 @@ class Event(Item):
         return {
             "description": self.description,
             "when": self.when.strftime("%Y-%m-%d %H:%M"),
+            "time": self.when.strftime("%H:%M"),
             "end": self.end.strftime("%Y-%m-%d %H:%M") if self.end else "",
             "path": self.path,
             "lineno": self.lineno,
@@ -183,9 +194,7 @@ class Note(Item):
     def toDict(self):
         return {
             "description": self.description,
-            "modified": humanize.naturaltime(
-                datetime.datetime.fromtimestamp(self.modified)
-            ),
+            "modified": humanize.naturaltime(datetime.datetime.fromtimestamp(self.modified)),
             "category": self.category,
             "path": self.path,
             "itemtype": 4,
@@ -196,9 +205,7 @@ class DatePicker(BoxLayout):
     pass
 
 
-class SelectableRecycleBoxLayout(
-    FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout
-):
+class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout):
     """Adds selection and focus behaviour to the view."""
 
 
@@ -210,14 +217,6 @@ class ToggleLabel(ToggleButtonBehavior, Label):
 
         self.allow_no_selection = False
         self.group = "default"
-
-        # self.bind(state=self.toggle)
-
-    # def toggle(self, instance, value):
-    #    if self.state == "down":
-    #        self.bg_color = [1, 1, 1, 0.1]
-    #    else:
-    #        self.bg_color = [1, 1, 1, 0.4]
 
 
 class MOrgRecycleView(RecycleView):
@@ -268,9 +267,7 @@ class MTextInput(TextInput):
         super().__init__(**kwargs)
         # User can change keyboard size during input
         # so we should regularly update the keyboard height
-        self.trigger_keyboard_height = Clock.create_trigger(
-            self.update_keyboard_height, 0.2, interval=True
-        )
+        self.trigger_keyboard_height = Clock.create_trigger(self.update_keyboard_height, 0.2, interval=True)
         self.trigger_cancel_keyboard_height = Clock.create_trigger(
             lambda dt: self.trigger_keyboard_height.cancel(), 1.0, interval=False
         )
@@ -314,9 +311,7 @@ class MDInput(CodeInput):
         CodeInput.__init__(self, lexer=MarkdownLexer(), style_name="default")
         # User can change keyboard size during input,
         # so we should regularly update the keyboard height
-        self.trigger_keyboard_height = Clock.create_trigger(
-            self.update_keyboard_height, 0.2, interval=True
-        )
+        self.trigger_keyboard_height = Clock.create_trigger(self.update_keyboard_height, 0.2, interval=True)
         self.trigger_cancel_keyboard_height = Clock.create_trigger(
             lambda dt: self.trigger_keyboard_height.cancel(), 1.0, interval=False
         )
@@ -368,6 +363,11 @@ class MOrgApp(App):
     accent_bg_color = ColorProperty([0.8, 0.8, 0.8, 1])
     second_accent_color = ColorProperty([1, 0.2, 1, 1])
     second_accent_color = ColorProperty([1, 0.2, 1, 1])
+    selected_accent_bg_color = ColorProperty([1, 1, 1, 1])
+    todo_color = ColorProperty([0, 0, 0, 1])
+    event_color = ColorProperty([0, 0, 0, 1])
+    journal_color = ColorProperty([0, 0, 0, 1])
+    note_color = ColorProperty([0, 0, 0, 1])
     listitem_selected_bgcolor = ColorProperty([1, 1, 1, 1])
     listitem_bgcolor = ColorProperty([1, 1, 1, 1])
     listitem_icon_color = ColorProperty([0, 0, 0, 1])
@@ -401,7 +401,6 @@ class MOrgApp(App):
         if platform == "android":
             return "/sdcard/Android/data/fr.rvier.morg/files/"
         return os.path.expanduser("~/Org")
-        # return os.path.join(self.user_data_dir, "")
 
     def key_input(self, window, key, scancode, codepoint, modifier):
         # key == 27 means it is waiting for
@@ -426,7 +425,7 @@ class MOrgApp(App):
             print("DARK MODE ? %s" % dark_mode())
             self.darkmode = dark_mode()
         except Exception as err:
-            self.darkmode = False
+            self.darkmode = True
             print(err)
         self.set_darkmode(self.darkmode)
         self.mainWidget = Builder.load_file("main.kv")
@@ -466,35 +465,38 @@ class MOrgApp(App):
     def load_events(self):
         events = {}
         pth = os.path.join(self.orgpath, "agenda.txt")
-        with open(pth, "r") as fh:
-            for lineno, line in enumerate(fh.readlines()):
-                g = EVENT_RE.match(line)
-                if g:
-                    strdate, strstart, strend, description = g.groups()
-                    dt = datetime.datetime.strptime(strdate, DATE_FMT)
-                    try:
-                        dts = datetime.datetime.strptime(strstart, TIME_FMT)
-                        when = datetime.datetime.combine(dt.date(), dts.time())
-                    except (ValueError, AttributeError, TypeError):
-                        when = dt
-                    try:
-                        dte = datetime.datetime.strptime(strend, TIME_FMT)
-                        end = datetime.datetime.combine(dt.date(), dte.time())
-                    except (ValueError, AttributeError, TypeError):
-                        end = None
-                    e = Event(
-                        description=description,
-                        lineno=lineno,
-                        path=pth,
-                        when=when,
-                        end=end,
-                    )
-                    try:
-                        events[dt.date()].append(e)
-                    except KeyError:
-                        events[dt.date()] = [
-                            e,
-                        ]
+        try:
+            with open(pth, "r") as fh:
+                for lineno, line in enumerate(fh.readlines()):
+                    g = EVENT_RE.match(line)
+                    if g:
+                        strdate, strstart, strend, description = g.groups()
+                        dt = datetime.datetime.strptime(strdate, DATE_FMT)
+                        try:
+                            dts = datetime.datetime.strptime(strstart, TIME_FMT)
+                            when = datetime.datetime.combine(dt.date(), dts.time())
+                        except (ValueError, AttributeError, TypeError):
+                            when = dt
+                        try:
+                            dte = datetime.datetime.strptime(strend, TIME_FMT)
+                            end = datetime.datetime.combine(dt.date(), dte.time())
+                        except (ValueError, AttributeError, TypeError):
+                            end = None
+                        e = Event(
+                            description=description,
+                            lineno=lineno,
+                            path=pth,
+                            when=when,
+                            end=end,
+                        )
+                        try:
+                            events[dt.date()].append(e)
+                        except KeyError:
+                            events[dt.date()] = [
+                                e,
+                            ]
+        except FileNotFoundError:
+            open(pth, "a").close()
         return events
 
     def load_journals(self):
@@ -525,8 +527,24 @@ class MOrgApp(App):
         return journals
 
     def load_todos(self):
+        donetxt = pytodotxt.TodoTxt(os.path.join(self.orgpath, "done.txt"))
         todotxt = pytodotxt.TodoTxt(os.path.join(self.orgpath, "todo.txt"))
-        todotxt.parse()
+
+        try:
+            todotxt.parse()
+        except FileNotFoundError:
+            open(os.path.join(self.orgpath, "todo.txt"), "a").close()
+
+        try:
+            donetxt.parse()
+        except FileNotFoundError:
+            open(os.path.join(self.orgpath, "done.txt"), "a").close()
+
+        for task in todotxt.tasks:
+            if task.is_completed:
+                donetxt.add(task)
+        todotxt.tasks = [t for t in todotxt.tasks if not t.is_completed]
+        donetxt.save()
         todotxt.save()
 
         todos = {"A": [], "B": []}
@@ -555,12 +573,12 @@ class MOrgApp(App):
         self.notes.clear()
 
         for i in self.events.keys():
-            d = i.strftime("%y%m%d")
+            d = i.strftime("%y%m") + str(i.day)
             if d not in self.event_busy_days:
                 self.event_busy_days.append(d)
 
         for i in self.journals.keys():
-            d = i.strftime("%y%m%d")
+            d = i.strftime("%y%m") + str(i.day)
             if d not in self.journal_busy_days:
                 self.journal_busy_days.append(d)
 
@@ -710,9 +728,7 @@ class MOrgApp(App):
         self.display_toolbar = True
         self.display_add = False
         try:
-            Clock.schedule_once(
-                partial(self.__go_to_line__, self.current_items[index]["lineno"]), 0.1
-            )
+            Clock.schedule_once(partial(self.__go_to_line__, self.current_items[index]["lineno"]), 0.1)
         except KeyError:
             pass
 
@@ -748,33 +764,44 @@ class MOrgApp(App):
                 print(err)
 
     def set_darkmode(self, value):
+        # THEME
         if value is True:
-            self.bg_color = [0, 0, 0, 1]
+            self.bg_color = rgba(40, 40, 40, 1)
             self.header_bg_color = [0.1, 0.1, 0.1, 1]
             self.primary_color = [1, 1, 1, 1]
             self.accent_color = [1, 0, 0, 1]
             self.accent_bg_color = [0.2, 0.2, 0.2, 1]
             self.second_accent_color = [1, 0.2, 1, 1]
             self.second_accent_bg_color = [28 / 255, 146 / 255, 236 / 255, 1]
-            self.listitem_selected_bgcolor = [0, 0, 0, 1]
-            self.listitem_bgcolor = [0, 0, 0, 1]
+            self.todo_color = rgba(214, 93, 14, 1)
+            self.journal_color = rgba(104, 157, 106, 1)
+            self.event_color = rgba(215, 153, 33, 1)
+            self.note_color = rgba(124, 111, 100, 1)
+            self.selected_accent_bg_color = [1, 1, 1, 0.2]
+            self.listitem_selected_bgcolor = [0, 0, 0, 0]
+            self.listitem_bgcolor = [0, 0, 0, 0]
             self.listitem_icon_color = [1, 1, 1, 1]
             self.listitem_selected_icon_color = [1, 1, 1, 1]
             self.listitem_color = [1, 1, 1, 1]
             self.listitem_selected_color = [1, 1, 1, 1]
             self.listitem_subcolor = [1, 1, 1, 1]
             self.listitem_selected_subcolor = [1, 1, 1, 1]
-            self.editor_bgcolor = [0, 0, 0, 1]
+            self.editor_bgcolor = [0.1, 0.1, 0.1, 1]
             self.editor_textcolor = [1, 1, 1, 1]
-            self.editor_pygments_style = GithubStyle
+            self.editor_pygments_style = GruvboxDarkStyle
         else:
-            self.bg_color = [1, 1, 1, 1]
-            self.header_bg_color = [0.9, 0.9, 0.9, 1]
+            self.bg_color = rgba(255, 255, 255, 1)  # [1, 1, 1, 1]
+            self.header_bg_color = rgba(245, 245, 245, 1)
             self.primary_color = [0, 0, 0, 1]
-            self.accent_color = [206 / 255, 155 / 255, 113 / 255, 1]
+            self.accent_color = rgba(214, 93, 14, 1)
             self.accent_bg_color = [0.8, 0.8, 0.8, 1]
-            self.second_accent_color = [1, 1, 1, 1]
+            self.second_accent_color = rgba(214, 153, 33, 1)
             self.second_accent_bg_color = [28 / 255, 146 / 255, 236 / 255, 1]
+            self.todo_color = rgba(214, 93, 14, 1)
+            self.journal_color = rgba(104, 157, 106, 1)
+            self.event_color = rgba(215, 153, 33, 1)
+            self.note_color = rgba(124, 111, 100, 1)
+            self.selected_accent_bg_color = rgba(69, 133, 136, 1)
             self.listitem_selected_bgcolor = [1, 1, 1, 1]
             self.listitem_bgcolor = [1, 1, 1, 1]
             self.listitem_icon_color = [206 / 255, 155 / 255, 113 / 255, 1]
@@ -828,6 +855,13 @@ class MOrgApp(App):
             ).toDict()
         )
 
+        p = os.path.join(self.orgpath, "expense.txt")
+        if not os.path.exists(p):
+            open(p, "a").close()
+        p = os.path.join(self.orgpath, "quicknote.txt")
+        if not os.path.exists(p):
+            open(p, "a").close()
+
         for name in [
             "agenda.txt",
             "todo.txt",
@@ -860,8 +894,6 @@ class MOrgApp(App):
 
 
 if __name__ == "__main__":
-    LabelBase.register(
-        name="awesome", fn_regular="data/font_awesome_5_free_solid_900.otf"
-    )
+    LabelBase.register(name="awesome", fn_regular="data/font_awesome_5_free_solid_900.otf")
     app = MOrgApp()
     app.run()

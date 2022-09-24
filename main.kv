@@ -39,12 +39,13 @@
     text: ''
     font_name: 'Roboto'
     font_size: '18sp'
-    color: .8, .2, .2, 1
+    color: 1,1,1,1
+    bg_color: .8, .2, .2, 1
     angle:0
     canvas.before:
         PushMatrix
         Color:
-            rgba: root.color
+            rgba: root.bg_color
         Ellipse:
             pos: self.pos
             size: self.size
@@ -76,14 +77,25 @@
 <Day@ButtonBehavior+Label>:
     canvas.before:
         Color:
-            rgba: app.bg_color if self.text != str(app.current_date.day) else app.second_accent_bg_color
+            rgba: (0,0,0,0) if self.text != str(app.current_date.day) else app.selected_accent_bg_color
         Ellipse:
             pos: (self.pos[0] + self.size[0]/2) - (self.size[1]/2), self.pos[1]
             size: self.size[1], self.size[1]
-   
+        Color:
+            rgba: (0,0,0,0) if (app.current_prefix+self.text) not in app.event_busy_days else app.accent_color
+        Rectangle:
+            pos: self.pos[0]+self.size[0]/2-14, self.pos[1] + 2
+            size: 28, 6
+        Color:
+            rgba: (0,1,0,0) if (app.current_prefix+self.text) not in app.journal_busy_days else app.second_accent_color
+        Rectangle:
+            pos: self.pos[0]+self.size[0]/2-14, self.pos[1] + 12
+            size: 28, 6
+
+
     text:""
     datepicker: root.parent.parent
-    color: app.second_accent_color if self.text == str(app.current_date.day) else app.primary_color
+    color: app.primary_color
     size_hint:1,1
     background_color: app.bg_color
     disabled: True if self.text == "" else False
@@ -93,7 +105,7 @@
 <DayLabel@Label>:
     canvas.before:
         Color:
-            rgba: app.bg_color 
+            rgba: (0,0,0,0)
         Rectangle:
             pos: self.pos
             size: self.size
@@ -154,6 +166,14 @@
             app.current_date += Timedelta(months=1)        
  
 <DatePicker@BoxLayout>:
+    bg_color: (0,0,0,0)
+    canvas:
+        Color:
+            rgba: self.bg_color
+        Rectangle:
+            pos:self.pos
+            size: self.size
+            
     months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     calendar: Calendar()
     days: [(i if i > 0 else "") for i in self.calendar.itermonthdays(app.current_date.year, app.current_date.month)] + [""] * 14
@@ -178,7 +198,7 @@
 <MOrgRecycleView>:
     viewclass: 'MOrgListItem'
     SelectableRecycleBoxLayout
-        default_size: None, dp(32) 
+        default_size: None, None 
         default_size_hint: 1, None
         size_hint_y: None
         height: self.minimum_height
@@ -186,7 +206,7 @@
         scroll_y: 0        
 
 <MOrgListItem>:
-    height: dp(32) if root.itemtype!=0 else dp(42)
+    height: dp(32) if root.itemtype!=0 else dp(64)
     padding: dp(10), dp(0), dp(0), dp(10)
     size_hint: 1, None
     #on_selected: app.inverse_todo(root.index, root.selected)
@@ -207,13 +227,14 @@
             size: (dp(24), dp(24)) if root.itemtype!=0 else (0,0)
             text: "" if root.itemtype == 0 else ("\uf111" if root.itemtype == 1 else ("\uf133" if root.itemtype == 2 else ("\uf1ea" if root.itemtype==3 else "\uf249")))
             pos_hint: {'center_y': 0.5}
-            color: app.listitem_selected_icon_color if root.selected else app.listitem_icon_color
+            color: app.primary_color if root.itemtype == 0 else (app.todo_color if root.itemtype == 1 else (app.event_color if root.itemtype == 2 else (app.journal_color if root.itemtype == 3 else app.note_color)))
             
         Widget:
             size_hint: None, 1
             width: dp(10) if root.itemtype != 0 else dp(0)
+
         Label:
-            text: root.when + "\n" + root.description if root.itemtype ==2 else root.description
+            text: root.time + " " + root.description if root.itemtype ==2 else root.description
             halign: 'left'
             size_hint: 1, 1 
             text_size: self.size
@@ -266,9 +287,10 @@ ScreenManager:
 
             BoxLayout:
                 orientation: "vertical"
+                spacing:dp(10)
                 DatePicker:
                     id: test
-                    color: "white"
+                    bg_color:app.header_bg_color
                     size_hint: 1, 0.5
 
                 MOrgRecycleView:
@@ -277,7 +299,7 @@ ScreenManager:
         
 
         AwesomeCircularButton:
-            color: .9,.2, .2, 1
+            bg_color: .9,.2, .2, 1
             pos: self.parent.width - dp(80), dp(16) 
             size_hint: None, None
             font_size: "24sp"
@@ -299,6 +321,8 @@ ScreenManager:
                 id: append_input
                 size_hint: 1,1
                 focus: False
+                background_color: app.editor_bgcolor
+                foreground_color: app.editor_textcolor
      
             ToggleLabel:
                 text: "Todo"
@@ -317,7 +341,7 @@ ScreenManager:
                 id: append_quicknote
  
         AwesomeCircularButton:
-            color: .9,.2, .2, 1
+            bg_color: .9,.2, .2, 1
             pos: self.parent.width - dp(80), dp(16) 
             size_hint: None, None
             font_size: "24sp"
