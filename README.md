@@ -40,11 +40,11 @@ Syncing isn t implemented in MOrg, you can use the sync tool you prefers. I pers
 ## Screenshots
 
 ### Dark Mode
-[![App Screenshot](screenshots/main_dark.jpg)]
-[![App Screenshot](screenshots/main_dark_notes.jpg)]
-[![App Screenshot](screenshots/note_dark.jpg)]
+![App Screenshot](screenshots/main_dark.jpg)
+![App Screenshot](screenshots/main_dark_notes.jpg)
+![App Screenshot](screenshots/note_dark.jpg)
 
 ### Light Mode
-[![App Screenshot](screenshots/main.jpg)]
-[![App Screenshot](screenshots/note.jpg)]
+![App Screenshot](screenshots/main.jpg)
+![App Screenshot](screenshots/note.jpg)
 
