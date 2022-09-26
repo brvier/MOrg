@@ -6,7 +6,7 @@ A future proof opinionated software to manage your life in plaintext : todo, age
 __author__ = "Benoît HERVIER"
 __copyright__ = "Copyright 2022, Benoît HERVIER"
 __license__ = "MIT"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __email__ = "b@rvier.fr"
 __status__ = "Developpment"
 
@@ -627,9 +627,11 @@ class MOrgApp(App):
             elif self.root.ids.append_event.state == "down":
                 with (open(os.path.join(self.orgpath, "agenda.txt"), "a")) as fh:
                     fh.write(
-                        "%s %s\n"
+                        "%s %02d:%02d %s\n"
                         % (
                             self.current_date.strftime("%Y-%m-%d"),
+                            self.root.ids.append_timepicker.hours,
+                            self.root.ids.append_timepicker.minutes,
                             self.root.ids.append_input.text,
                         )
                     )
@@ -647,7 +649,7 @@ class MOrgApp(App):
                     fh.write(
                         "%s %s\n"
                         % (
-                            self.current_date.strftime("%H:%M"),
+                            datetime.datetime.now().strftime("%H:%M"),
                             self.root.ids.append_input.text,
                         )
                     )
@@ -664,7 +666,7 @@ class MOrgApp(App):
                     fh.write(
                         "%s %s\n"
                         % (
-                            self.current_date.strftime("%H:%M"),
+                            datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
                             self.root.ids.append_input.text,
                         )
                     )

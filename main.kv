@@ -5,6 +5,7 @@
 #:import Timedelta dateutil.relativedelta.relativedelta
 #:import NoTransition kivy.uix.screenmanager.NoTransition
 #:import Window kivy.core.window.Window
+#:import CircularTimePicker kivy.garden.circulardatetimepicker.CircularTimePicker
 
 <NoteView>:
     id: noteView
@@ -317,13 +318,19 @@ ScreenManager:
             size_hint: 1,1
             orientation: 'vertical'
             
+            CircularTimePicker:
+                id: append_timepicker
+                opacity: 1 if append_event.state == "down" else 0
+                height: dp(200) if append_event.state == "down" else dp(0)
+                size_hint: (1,1) if append_event.state == "down" else (1, None)
+
             MTextInput: 
                 id: append_input
                 size_hint: 1,1
                 focus: False
                 background_color: app.editor_bgcolor
                 foreground_color: app.editor_textcolor
-     
+    
             ToggleLabel:
                 text: "Todo"
                 id: append_todo
