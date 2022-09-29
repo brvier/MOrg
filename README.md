@@ -21,17 +21,29 @@ A future proof opinionated software to manage your life in plaintext : todo, age
   - journal/
   - notes/
 
+### Todo.txt and done.txt Format
+
+Use https://github.com/todotxt/todo.txt
+
+Only task with priority (A) or without priority are displayed on main screen.
+
+### Agenda.txt Format
+
+Each line is an event, three format are accepted :
+    
+YYYY-mm-dd event for all day
+YYYY-mm-dd HH:MM event  at hour:minute
+YYYY-mm-dd HH:MM HH:MM event with a start and a end
+
 ## Roadmap
 
 - [ ] Auto cleaning agenda events
 - [ ] Toolbar in note editor
   - [ ] Add hours/minute selector to add event
-  - [ ] Add shortcut indent / unindent
-    swipe left and right ?
-  - [ ] add shortcut for todo/done
-    swipe left and right ?
-  - [ ] Share a note
-  - [ ] Receive android intent
+  - [x] Add shortcut indent / unindent
+  - [x] add shortcut for todo/done
+- [ ] Share a note
+- [ ] Receive android intent
 
 ## Sync
 

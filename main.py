@@ -6,50 +6,41 @@ A future proof opinionated software to manage your life in plaintext : todo, age
 __author__ = "Benoît HERVIER"
 __copyright__ = "Copyright 2022, Benoît HERVIER"
 __license__ = "MIT"
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 __email__ = "b@rvier.fr"
 __status__ = "Developpment"
 
-import kivy
-
 import datetime
-import time
 import os
 import re
+import time
 from functools import partial
-import humanize
 
-from kivy.uix.screenmanager import Screen
-from kivy.lang import Builder
+import humanize
+import kivy
 from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.properties import (
-    StringProperty,
-    ObjectProperty,
-    ColorProperty,
-    ListProperty,
-    BooleanProperty,
-    NumericProperty,
-    #    DictProperty,
-)
-from kivy.core.window import Window
 from kivy.clock import Clock
-from kivy.uix.recycleview.views import RecycleDataViewBehavior
-from kivy.uix.widget import Widget
-from kivy.uix.recycleview import RecycleView
-from kivy.uix.recycleboxlayout import RecycleBoxLayout
-from kivy.uix.recycleview.layout import LayoutSelectionBehavior
-from kivy.uix.behaviors import FocusBehavior
 from kivy.core.text import LabelBase
-from kivy.utils import platform
-from kivy.uix.behaviors import ButtonBehavior
-from kivy.vector import Vector
+from kivy.core.window import Window
+from kivy.lang import Builder
+from kivy.properties import ColorProperty  # DictProperty,
+from kivy.properties import (BooleanProperty, ListProperty, NumericProperty,
+                             ObjectProperty, StringProperty)
+from kivy.uix.behaviors import (ButtonBehavior, FocusBehavior,
+                                ToggleButtonBehavior)
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.codeinput import CodeInput  # noqa
 from kivy.uix.label import Label
+from kivy.uix.recycleboxlayout import RecycleBoxLayout
+from kivy.uix.recycleview import RecycleView
+from kivy.uix.recycleview.layout import LayoutSelectionBehavior
+from kivy.uix.recycleview.views import RecycleDataViewBehavior
+from kivy.uix.screenmanager import Screen
 from kivy.uix.textinput import TextInput
-from kivy.uix.behaviors import ToggleButtonBehavior
+from kivy.utils import platform
+from kivy.vector import Vector
+from pygments.lexers.textfmts import TodotxtLexer
 
-from pygments.lexers.markup import MarkdownLexer
 from styles import GithubStyle, GruvboxDarkStyle
 
 if platform == "android":
@@ -80,12 +71,11 @@ def get_android_vkeyboard_height():
         # for a unknow reason keyboard height can be negative when closed... and
         # an offset persists when open : dirty work arround
         h = android.get_keyboard_height()
-        if h < 0:
-            vkeyboard_offset = -h
-            h = 0
-        else:
-            h += vkeyboard_offset
-        return h
+        if not vkeyboard_offset:
+            if h < 0:
+                vkeyboard_offset = -h
+                h = 0
+        return h + vkeyboard_offset
     else:
         return Window.keyboard_height
 
@@ -194,7 +184,9 @@ class Note(Item):
     def toDict(self):
         return {
             "description": self.description,
-            "modified": humanize.naturaltime(datetime.datetime.fromtimestamp(self.modified)),
+            "modified": humanize.naturaltime(
+                datetime.datetime.fromtimestamp(self.modified)
+            ),
             "category": self.category,
             "path": self.path,
             "itemtype": 4,
@@ -205,7 +197,9 @@ class DatePicker(BoxLayout):
     pass
 
 
-class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout):
+class SelectableRecycleBoxLayout(
+    FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout
+):
     """Adds selection and focus behaviour to the view."""
 
 
@@ -267,7 +261,9 @@ class MTextInput(TextInput):
         super().__init__(**kwargs)
         # User can change keyboard size during input
         # so we should regularly update the keyboard height
-        self.trigger_keyboard_height = Clock.create_trigger(self.update_keyboard_height, 0.2, interval=True)
+        self.trigger_keyboard_height = Clock.create_trigger(
+            self.update_keyboard_height, 0.2, interval=True
+        )
         self.trigger_cancel_keyboard_height = Clock.create_trigger(
             lambda dt: self.trigger_keyboard_height.cancel(), 1.0, interval=False
         )
@@ -308,10 +304,12 @@ class MDInput(CodeInput):
     re_indent_list = re.compile(r"^\s*(-\s)")
 
     def __init__(self, **kwarg):
-        CodeInput.__init__(self, lexer=MarkdownLexer(), style_name="default")
+        CodeInput.__init__(self, lexer=TodotxtLexer(), style_name="default")
         # User can change keyboard size during input,
         # so we should regularly update the keyboard height
-        self.trigger_keyboard_height = Clock.create_trigger(self.update_keyboard_height, 0.2, interval=True)
+        self.trigger_keyboard_height = Clock.create_trigger(
+            self.update_keyboard_height, 0.2, interval=True
+        )
         self.trigger_cancel_keyboard_height = Clock.create_trigger(
             lambda dt: self.trigger_keyboard_height.cancel(), 1.0, interval=False
         )
@@ -331,6 +329,96 @@ class MDInput(CodeInput):
         if platform == "android":
             self.trigger_cancel_keyboard_height()
 
+    def set_cursor(self, idx):
+        self.cursor = self.get_cursor_from_index(idx)
+        self.focus = True
+
+    def do_indent(self, *kwargs):
+        index = self.cursor_index()
+        if index > 0:
+            _text = self.text
+            line_start = _text.rfind("\n", 0, index)
+            self.text = _text[: line_start + 1] + "  " + _text[line_start + 1 :]
+            if index > line_start:
+                index += 2
+
+        self.set_cursor(index)
+
+    def do_unindent(self, *kwargs):
+        index = self.cursor_index()
+        _text = self.text
+        line_start = _text.rfind("\n", 0, index)
+        line_end = _text.find("\n", index)
+        if line_end == -1:
+            line_end = len(_text)
+        if (_text[line_start + 1 : line_start + 3]) == "  ":
+            self.text = _text[: line_start + 1] + _text[line_start + 3 :]
+            if index > line_start:
+                index -= 2
+        self.set_cursor(index)
+
+    def do_todo(self):
+        index = self.cursor_index()
+
+        if index >= 0:
+            _text = self.text
+            line_start = _text.rfind("\n", 0, index)
+            line_end = _text.find("\n", index)
+            if line_end == -1:
+                line_end = len(_text)
+            if line_start < 0:
+                line_start = -1
+
+            print(type(self.lexer))
+
+            if type(self.lexer) == TodotxtLexer:
+                if _text[line_start + 1 : line_start + 3] == "x ":
+                    self.text = "{}{}{}".format(
+                        self.text[: line_start + 1],
+                        "",
+                        self.text[line_start + 3 :],
+                    )
+                else:
+                    self.text = "{}{}{}".format(
+                        self.text[: line_start + 1],
+                        "x ",
+                        self.text[line_start + 1 :],
+                    )
+
+                self.set_cursor(index + (len(self.text) - len(_text)))
+
+                return
+            idx = _text.find("- [ ]", line_start + 1, line_end)
+            if idx >= 0:
+                self.text = "{}{}{}".format(
+                    self.text[: idx + 3],
+                    "x",
+                    self.text[idx + 4 :],
+                )
+            else:
+                idx = _text.find("- [x]", line_start + 1, line_end)
+                if idx >= 0:
+                    self.text = "{}{}{}".format(
+                        self.text[:idx],
+                        "- ",
+                        self.text[idx + 6 :],
+                    )
+                else:
+                    idx = _text.find("- ", line_start + 1, line_end)
+                    if idx >= 0:
+                        self.text = "{}{}{}".format(
+                            self.text[:idx],
+                            "- [ ] ",
+                            self.text[idx + 2 :],
+                        )
+                    else:
+                        self.text = "{}{}{}".format(
+                            self.text[: line_start + 1],
+                            "- ",
+                            self.text[line_start + 1 :],
+                        )
+            self.set_cursor(index + (len(self.text) - len(_text)))
+
     def insert_text(self, substring, from_undo=False):
         if not from_undo and self.multiline and self.auto_indent and substring == "\n":
             substring = self._auto_indent(substring)
@@ -343,7 +431,7 @@ class MDInput(CodeInput):
             _text = self.text
             line_start = _text.rfind("\n", 0, index)
             if line_start > -1:
-                line = _text[line_start + 1 : index]  # noqa
+                line = _text[line_start + 1 : index]  # noqa:E203
                 indent = self.re_indent_todo.match(line)
 
                 if indent is None:
@@ -425,7 +513,7 @@ class MOrgApp(App):
             print("DARK MODE ? %s" % dark_mode())
             self.darkmode = dark_mode()
         except Exception as err:
-            self.darkmode = True
+            self.darkmode = False
             print(err)
         self.set_darkmode(self.darkmode)
         self.mainWidget = Builder.load_file("main.kv")
@@ -438,7 +526,7 @@ class MOrgApp(App):
     def __init__later__(self, dt, **kv):
         print("INIT LATER")
         if platform == "android":
-            from android.permissions import request_permissions, Permission
+            from android.permissions import Permission, request_permissions
 
             try:
 
@@ -711,6 +799,7 @@ class MOrgApp(App):
             "content": "",
             "filepath": pth,
         }
+
         try:
             with open(note["filepath"], "r") as fh:
                 note["content"] = fh.read()
@@ -730,7 +819,9 @@ class MOrgApp(App):
         self.display_toolbar = True
         self.display_add = False
         try:
-            Clock.schedule_once(partial(self.__go_to_line__, self.current_items[index]["lineno"]), 0.1)
+            Clock.schedule_once(
+                partial(self.__go_to_line__, self.current_items[index]["lineno"]), 0.1
+            )
         except KeyError:
             pass
 
@@ -816,6 +907,11 @@ class MOrgApp(App):
             self.editor_textcolor = [0, 0, 0, 1]
             self.editor_pygments_style = GithubStyle
 
+    def touch(self, filename):
+        p = os.path.join(self.orgpath, filename)
+        if not os.path.exists(p):
+            open(p, "a").close()
+
     def on_current_date(self, s, d, **kw):
         self.current_prefix = self.current_date.strftime("%y%m")
         self.root.ids.scrollview.scroll_y = 1
@@ -857,12 +953,8 @@ class MOrgApp(App):
             ).toDict()
         )
 
-        p = os.path.join(self.orgpath, "expense.txt")
-        if not os.path.exists(p):
-            open(p, "a").close()
-        p = os.path.join(self.orgpath, "quicknote.txt")
-        if not os.path.exists(p):
-            open(p, "a").close()
+        self.touch("expenses.txt")
+        self.touch("quicknote.txt")
 
         for name in [
             "agenda.txt",
@@ -896,6 +988,8 @@ class MOrgApp(App):
 
 
 if __name__ == "__main__":
-    LabelBase.register(name="awesome", fn_regular="data/font_awesome_5_free_solid_900.otf")
+    LabelBase.register(
+        name="awesome", fn_regular="data/font_awesome_5_free_solid_900.otf"
+    )
     app = MOrgApp()
     app.run()

@@ -6,10 +6,13 @@
 #:import NoTransition kivy.uix.screenmanager.NoTransition
 #:import Window kivy.core.window.Window
 #:import CircularTimePicker kivy.garden.circulardatetimepicker.CircularTimePicker
+#:import MarkdownLexer pygments.lexers.markup.MarkdownLexer 
+#:import TodotxtLexer pygments.lexers.textfmts.TodotxtLexer
 
 <NoteView>:
     id: noteView
     on_content: app.save_note(self.filepath, self.content)
+    on_filepath: w_textinput.lexer = TodotxtLexer() if noteView.filepath.endswith('todo.txt') else MarkdownLexer()
     canvas:
         Color:
             rgba: app.bg_color
@@ -35,6 +38,29 @@
             auto_indent: True
             replace_crlf: True
             height: max( (len(self._lines)+1) * self.line_height +dp(48), scrlv.height)
+    BoxLayout:
+        size_hint: 1, None
+        pos:0,0
+        height: dp(48)
+        orientation: 'horizontal'
+        spacing:dp(1)
+        LabelButton:
+            #color: app.primary_color
+            text: 'Indent'
+            on_release: w_textinput.do_indent()
+        LabelButton:
+            text: 'Unindent'
+            on_release: w_textinput.do_unindent()
+        LabelButton:
+            text: 'x' if type(w_textinput.lexer)==TodotxtLexer else  '[ ]' 
+            on_release: w_textinput.do_todo()
+        LabelButton:
+            text: 'Undo'
+            on_release: w_textinput.do_undo()
+        LabelButton:
+            text: 'Redo'
+            on_release: w_textinput.do_redo()
+        
 
 <CircularButton>:
     text: ''
@@ -323,6 +349,9 @@ ScreenManager:
                 opacity: 1 if append_event.state == "down" else 0
                 height: dp(200) if append_event.state == "down" else dp(0)
                 size_hint: (1,1) if append_event.state == "down" else (1, None)
+                color: app.primary_color[:-1]
+                hours: 12
+                minutes: 00
 
             MTextInput: 
                 id: append_input
