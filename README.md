@@ -38,8 +38,8 @@ YYYY-mm-dd HH:MM HH:MM event with a start and a end
 ## Roadmap
 
 - [ ] Auto cleaning agenda events
-- [ ] Toolbar in note editor
-  - [ ] Add hours/minute selector to add event
+- [x] Toolbar in note editor
+  - [x] Add hours/minute selector to add event
   - [x] Add shortcut indent / unindent
   - [x] add shortcut for todo/done
 - [ ] Share a note
