@@ -109,12 +109,12 @@
             pos: (self.pos[0] + self.size[0]/2) - (self.size[1]/2), self.pos[1]
             size: self.size[1], self.size[1]
         Color:
-            rgba: (0,0,0,0) if (app.current_prefix+self.text) not in app.event_busy_days else app.accent_color
+            rgba: (0,0,0,0) if (app.current_prefix+self.text) not in app.event_busy_days else app.event_color
         Rectangle:
             pos: self.pos[0]+self.size[0]/2-14, self.pos[1] + 2
             size: 28, 6
         Color:
-            rgba: (0,1,0,0) if (app.current_prefix+self.text) not in app.journal_busy_days else app.second_accent_color
+            rgba: (0,1,0,0) if (app.current_prefix+self.text) not in app.journal_busy_days else app.journal_color
         Rectangle:
             pos: self.pos[0]+self.size[0]/2-14, self.pos[1] + 12
             size: 28, 6
@@ -265,6 +265,7 @@
             halign: 'left'
             size_hint: 1, 1 
             text_size: self.size
+            shorten: True
             color: app.listitem_selected_color if root.selected else app.listitem_color
             font_size: sp(24) if root.itemtype == 0 else sp(14)
             valign: 'middle'

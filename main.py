@@ -6,7 +6,7 @@ A future proof opinionated software to manage your life in plaintext : todo, age
 __author__ = "Benoît HERVIER"
 __copyright__ = "Copyright 2022, Benoît HERVIER"
 __license__ = "MIT"
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __email__ = "b@rvier.fr"
 __status__ = "Developpment"
 
@@ -71,6 +71,7 @@ def get_android_vkeyboard_height():
         # for a unknow reason keyboard height can be negative when closed... and
         # an offset persists when open : dirty work arround
         h = android.get_keyboard_height()
+        print(h)
         if not vkeyboard_offset:
             if h < 0:
                 vkeyboard_offset = -h
@@ -541,7 +542,16 @@ class MOrgApp(App):
             except Exception as err:
                 print(err)
 
-        self.load()
+        # Horrible workarround on android where sometime py intepreter return FileNotFoundError
+        # reason or maybe permission not yet ack
+
+        while True:
+            try:
+                self.load()
+                break
+            except FileNotFoundError:
+                time.sleep(0.1)
+                continue
 
     def __go_to_line__(self, lineno, dts=None):
         # col, row = self.noteView.ids.w_textinput.get_cursor_from_index(idx)
@@ -554,8 +564,13 @@ class MOrgApp(App):
         events = {}
         pth = os.path.join(self.orgpath, "agenda.txt")
         try:
+            is_sorted = False
             with open(pth, "r") as fh:
-                for lineno, line in enumerate(fh.readlines()):
+                original_lines = fh.readlines()
+                lines = sorted(original_lines)
+                if lines != original_lines:
+                    is_sorted = True
+                for lineno, line in enumerate(lines):
                     g = EVENT_RE.match(line)
                     if g:
                         strdate, strstart, strend, description = g.groups()
@@ -583,6 +598,9 @@ class MOrgApp(App):
                             events[dt.date()] = [
                                 e,
                             ]
+            if is_sorted:
+                with open(pth, "w") as fh:
+                    fh.write("".join(lines))
         except FileNotFoundError:
             open(pth, "a").close()
         return events
