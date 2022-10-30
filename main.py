@@ -6,7 +6,7 @@ A future proof opinionated software to manage your life in plaintext : todo, age
 __author__ = "Benoît HERVIER"
 __copyright__ = "Copyright 2022, Benoît HERVIER"
 __license__ = "MIT"
-__version__ = "0.2.1"
+__version__ = "0.2.0"
 __email__ = "b@rvier.fr"
 __status__ = "Developpment"
 
@@ -472,6 +472,7 @@ class MOrgApp(App):
     current_items = ListProperty([])
     current_prefix = StringProperty()
     keyboard_height = NumericProperty(0)
+    picker_datetime = ObjectProperty(datetime.datetime.now())
 
     darkmode = BooleanProperty(False)
 
@@ -600,7 +601,7 @@ class MOrgApp(App):
                             ]
             if is_sorted:
                 with open(pth, "w") as fh:
-                    fh.write("".join(lines))
+                    fh.write("".join(lines).strip())
         except FileNotFoundError:
             open(pth, "a").close()
         return events
@@ -718,6 +719,7 @@ class MOrgApp(App):
 
     def add(self, **args):
         print(args)
+        self.picker_datetime = datetime.datetime.combine(self.current_date, datetime.time(12,0,0))
         self.root.transition.direction = "left"
         self.root.current = "append"
         self.root.ids.append_input.text = ""
@@ -733,12 +735,9 @@ class MOrgApp(App):
             elif self.root.ids.append_event.state == "down":
                 with (open(os.path.join(self.orgpath, "agenda.txt"), "a")) as fh:
                     fh.write(
-                        "%s %02d:%02d %s\n"
-                        % (
-                            self.current_date.strftime("%Y-%m-%d"),
-                            self.root.ids.append_timepicker.hours,
-                            self.root.ids.append_timepicker.minutes,
-                            self.root.ids.append_input.text,
+                        "{:%Y-%m-%d %H:%M} \n".format(
+                        
+                            self.picker_datetime
                         )
                     )
             elif self.root.ids.append_journal.state == "down":

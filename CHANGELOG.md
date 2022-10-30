@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [0.2.0] - Not yet published
 ### Added
 - tool buton in editor
-
+- sort event in agendatxt
+- time selector when adding event
+### Fixed 
+- keyboard
 
 ## [0.1.1] - 2022-09-22
 ### Fixed

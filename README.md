@@ -35,6 +35,10 @@ YYYY-mm-dd event for all day
 YYYY-mm-dd HH:MM event  at hour:minute
 YYYY-mm-dd HH:MM HH:MM event with a start and a end
 
+### Expense.txt format
+
+YYYY-mm-dd 000.00 short description
+
 ## Roadmap
 
 - [ ] Auto cleaning agenda events
@@ -44,6 +48,14 @@ YYYY-mm-dd HH:MM HH:MM event with a start and a end
   - [x] add shortcut for todo/done
 - [ ] Share a note
 - [ ] Receive android intent
+- [ ] folding notes sub folder
+- [ ] Add page
+  - [ ] expense template
+  - [ ] event template
+  - [ ] journal template
+- [ ] rename a note
+- [ ] archive a note
+- [ ] search
 
 ## Sync
 

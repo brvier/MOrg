@@ -344,38 +344,70 @@ ScreenManager:
         BoxLayout:
             size_hint: 1,1
             orientation: 'vertical'
-            
-            CircularTimePicker:
-                id: append_timepicker
-                opacity: 1 if append_event.state == "down" else 0
-                height: dp(200) if append_event.state == "down" else dp(0)
-                size_hint: (1,1) if append_event.state == "down" else (1, None)
-                color: app.primary_color[:-1]
-                hours: 12
-                minutes: 00
 
             MTextInput: 
+                padding:dp(10)
                 id: append_input
                 size_hint: 1,1
                 focus: False
                 background_color: app.editor_bgcolor
                 foreground_color: app.editor_textcolor
-    
-            ToggleLabel:
-                text: "Todo"
-                id: append_todo
-            ToggleLabel:
-                text: "Event"
-                id: append_event
-            ToggleLabel:
-                text: "Journal"
-                id: append_journal
-            ToggleLabel:
-                text: "Expense"
-                id: append_expense
-            ToggleLabel:
-                text: "QuickNote"
-                id: append_quicknote
+          
+            BoxLayout:
+                size_hint: 1,None
+                height: dp(100)
+                orientation: 'horizontal'
+                LabelButton:
+                    text:'<<'
+                    on_release: app.picker_datetime += Timedelta(hours=-1)
+                    opacity: 1 if append_event.state == "down" else 0
+                LabelButton:
+                    text:'<'
+                    on_release: app.picker_datetime += Timedelta(minutes=-5)
+                    opacity: 1 if append_event.state == "down" else 0
+                Label:
+                    text: "{:%H:%M}".format(app.picker_datetime)
+                    opacity: 1 if append_event.state == "down" else 0
+                    height: dp(100) 
+                    size_hint: (1,1) 
+                LabelButton:
+                    text:'>'
+                    on_release: app.picker_datetime += Timedelta(minutes=5)
+                    opacity: 1 if append_event.state == "down" else 0
+                LabelButton:
+                    text:'>>'
+                    on_release: app.picker_datetime += Timedelta(hours=1)
+                    opacity: 1 if append_event.state == "down" else 0
+            GridLayout:
+                cols: 2
+                size_hint: 1,None
+                ToggleLabel:
+                    text: "Todo"
+                    id: append_todo
+	                size_hint: 1,None
+					height: dp(64)
+                ToggleLabel:
+                    text: "Event"
+                    id: append_event
+	                size_hint: 1,None
+					height: dp(64)
+                ToggleLabel:
+                    text: "Journal"
+                    id: append_journal
+	                size_hint: 1,None
+					height: dp(64)
+                ToggleLabel:
+                    text: "Expense"
+                    id: append_expense
+	                size_hint: 1,None
+					height: dp(64)
+                ToggleLabel:
+                    text: "QuickNote"
+                    id: append_quicknote
+	                size_hint: 1,None
+					height: dp(64)
+                    
+            
  
         AwesomeCircularButton:
             bg_color: .9,.2, .2, 1
