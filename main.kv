@@ -286,7 +286,7 @@
     color: app.primary_color
     canvas.before:
         Color:
-            rgba: app.accent_bg_color if self.state == "down" else app.bg_color
+            rgba: app.selected_accent_bg_color if self.state == "down" else app.accent_bg_color
         Rectangle:
             pos: self.pos
             size: self.size 
@@ -346,7 +346,7 @@ ScreenManager:
             orientation: 'vertical'
 
             MTextInput: 
-                padding:dp(10)
+                padding:dp(20)
                 id: append_input
                 size_hint: 1,1
                 focus: False
@@ -355,8 +355,10 @@ ScreenManager:
           
             BoxLayout:
                 size_hint: 1,None
-                height: dp(100)
+                height: dp(100) if append_event.state=="down" else dp(0)
                 orientation: 'horizontal'
+				spacing: dp(10)
+				padding: dp(20)
                 LabelButton:
                     text:'<<'
                     on_release: app.picker_datetime += Timedelta(hours=-1)
@@ -382,6 +384,9 @@ ScreenManager:
             GridLayout:
                 cols: 2
                 size_hint: 1,None
+				height: dp(246)
+				spacing: dp(10)
+				padding: dp(20)
                 ToggleLabel:
                     text: "Todo"
                     id: append_todo
