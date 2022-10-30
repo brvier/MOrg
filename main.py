@@ -738,7 +738,7 @@ class MOrgApp(App):
                 with (open(os.path.join(self.orgpath, "agenda.txt"), "a")) as fh:
                     fh.write(
                         "\n{:%Y-%m-%d %H:%M} {}\n".format(
-                            self.picker_datetime, self.root.ids.append_input_text
+                            self.picker_datetime, self.root.ids.append_input.text
                         )
                     )
             elif self.root.ids.append_journal.state == "down":
