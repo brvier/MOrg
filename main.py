@@ -719,7 +719,9 @@ class MOrgApp(App):
 
     def add(self, **args):
         print(args)
-        self.picker_datetime = datetime.datetime.combine(self.current_date, datetime.time(12,0,0))
+        self.picker_datetime = datetime.datetime.combine(
+            self.current_date, datetime.time(12, 0, 0)
+        )
         self.root.transition.direction = "left"
         self.root.current = "append"
         self.root.ids.append_input.text = ""
@@ -735,9 +737,8 @@ class MOrgApp(App):
             elif self.root.ids.append_event.state == "down":
                 with (open(os.path.join(self.orgpath, "agenda.txt"), "a")) as fh:
                     fh.write(
-                        "{:%Y-%m-%d %H:%M} \n".format(
-                        
-                            self.picker_datetime
+                        "\n{:%Y-%m-%d %H:%M} {}\n".format(
+                            self.picker_datetime, self.root.ids.append_input_text
                         )
                     )
             elif self.root.ids.append_journal.state == "down":

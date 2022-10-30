@@ -370,7 +370,8 @@ ScreenManager:
                     opacity: 1 if append_event.state == "down" else 0
                     height: dp(100) 
                     size_hint: (1,1) 
-                LabelButton:
+				    color: app.primary_color
+				LabelButton:
                     text:'>'
                     on_release: app.picker_datetime += Timedelta(minutes=5)
                     opacity: 1 if append_event.state == "down" else 0
