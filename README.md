@@ -49,10 +49,7 @@ YYYY-mm-dd 000.00 short description
 - [ ] Share a note
 - [ ] Receive android intent
 - [ ] folding notes sub folder
-- [ ] Add page
-  - [ ] expense template
-  - [ ] event template
-  - [ ] journal template
+- [x] Add page
 - [ ] rename a note
 - [ ] archive a note
 - [ ] search
