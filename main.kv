@@ -91,10 +91,10 @@
     canvas.before:
         Color:
             rgba: self.bg_color if self.bg_color else (.9,.9,.9,1)
-        Rectangle:
+        RoundedRectangle:
             pos: self.pos
             size: self.size
-
+			radius: [(10, 10),(10, 10),(10, 10),(10, 10)]
     text:""
     color: app.primary_color
     size_hint:1,1
@@ -237,7 +237,7 @@
     padding: dp(10), dp(0), dp(0), dp(10)
     size_hint: 1, None
     #on_selected: app.inverse_todo(root.index, root.selected)
-    on_release: app.edit(root.index, root.selected)
+    on_release: app.edit(root.index, root.itemtype!=4, root.selected)
     canvas:
         Color:
             rgba: app.listitem_selected_bgcolor if root.itemtype==0 else app.listitem_bgcolor
@@ -287,10 +287,11 @@
     canvas.before:
         Color:
             rgba: app.selected_accent_bg_color if self.state == "down" else app.accent_bg_color
-        Rectangle:
+        RoundedRectangle:
             pos: self.pos
             size: self.size 
- 
+			radius: [(10, 10), (10, 10), (10, 10), (10, 10)]
+
 ScreenManager:
     id: sm
     name: "sm"
@@ -361,24 +362,29 @@ ScreenManager:
 				padding: dp(20)
                 LabelButton:
                     text:'<<'
+					bg_color: app.accent_bg_color
                     on_release: app.picker_datetime += Timedelta(hours=-1)
                     opacity: 1 if append_event.state == "down" else 0
                 LabelButton:
                     text:'<'
+					bg_color: app.accent_bg_color
                     on_release: app.picker_datetime += Timedelta(minutes=-5)
                     opacity: 1 if append_event.state == "down" else 0
                 Label:
                     text: "{:%H:%M}".format(app.picker_datetime)
                     opacity: 1 if append_event.state == "down" else 0
-                    height: dp(100) 
+                    height: dp(100)
+					font_size: sp(24)
                     size_hint: (1,1) 
 				    color: app.primary_color
 				LabelButton:
+					bg_color: app.accent_bg_color
                     text:'>'
                     on_release: app.picker_datetime += Timedelta(minutes=5)
                     opacity: 1 if append_event.state == "down" else 0
                 LabelButton:
                     text:'>>'
+					bg_color: app.accent_bg_color
                     on_release: app.picker_datetime += Timedelta(hours=1)
                     opacity: 1 if append_event.state == "down" else 0
             GridLayout:
@@ -412,20 +418,25 @@ ScreenManager:
                     id: append_quicknote
 	                size_hint: 1,None
 					height: dp(64)
-                    
-            
- 
-        AwesomeCircularButton:
-            bg_color: .9,.2, .2, 1
-            pos: self.parent.width - dp(80), dp(16) 
-            size_hint: None, None
-            font_size: "24sp"
-            text: '\uf271'
-            height: '64dp'
-            width: '64dp'
-            on_release: app.do_add()
+                ToggleLabel:
+                    text: "Note"
+                    id: append_note
+	                size_hint: 1,None
+					height: dp(64)
 
-       
+			LabelButton:
+				on_release: app.do_add()
+	            bg_color: app.second_accent_bg_color
+				color: 1,1,1,1
+	            text: '+'
+		        height: '64dp'
+				font_size: sp(24)
+				size_hint: 0.2, None
+				pos_hint: {'center_x': .5}
+			
+			Widget:
+				size_hint: 1, None
+				height: dp(10)
     NoteView:
         id: editor
         name: "editor"

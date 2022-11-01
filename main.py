@@ -15,6 +15,7 @@ import os
 import re
 import time
 from functools import partial
+from pathlib import Path
 
 import humanize
 import kivy
@@ -178,7 +179,7 @@ class Note(Item):
     modified = None
 
     def __init__(self, description, path):
-        super(Note, self).__init__(description, path, lineno=0)
+        super(Note, self).__init__(description, path, lineno=None)
         self.modified = os.path.getmtime(path)
         self.category = os.path.dirname(path)
 
@@ -190,6 +191,7 @@ class Note(Item):
             ),
             "category": self.category,
             "path": self.path,
+            "lineno": 0,
             "itemtype": 4,
         }
 
@@ -451,7 +453,6 @@ class MOrgApp(App):
     accent_color = ColorProperty([1, 0, 0, 1])
     accent_bg_color = ColorProperty([0.8, 0.8, 0.8, 1])
     second_accent_color = ColorProperty([1, 0.2, 1, 1])
-    second_accent_color = ColorProperty([1, 0.2, 1, 1])
     selected_accent_bg_color = ColorProperty([1, 1, 1, 1])
     todo_color = ColorProperty([0, 0, 0, 1])
     event_color = ColorProperty([0, 0, 0, 1])
@@ -558,6 +559,8 @@ class MOrgApp(App):
         # col, row = self.noteView.ids.w_textinput.get_cursor_from_index(idx)
         # print("__go_to_line__", idx, col, row)
         print(lineno)
+        if lineno is None:
+            return
         self.noteView.ids.w_textinput.focus = True
         self.noteView.ids.w_textinput.cursor = (0, lineno)
 
@@ -787,12 +790,30 @@ class MOrgApp(App):
                     )
                 ) as fh:
                     fh.write("%s\n" % (self.root.ids.append_input.text,))
+            elif self.root.ids.append_note.state == "down":
+                pth = os.path.join(
+                    self.orgpath,
+                    "notes",
+                    re.sub(r"[^0-9a-zA-Z]+", "_", self.root.ids.append_input.text)
+                    + ".md",
+                )
+                Path(pth).touch()
+                self.current_items.append(
+                    Note(
+                        description=pth,
+                        path=pth,
+                    ).toDict()
+                )
+                Clock.schedule_once(
+                    partial(self.edit, len(self.current_items) - 1, True), 0.2
+                )
+                return
 
         self.root.transition.direction = "right"
         self.root.current = "main"
         self.load()
 
-    def edit(self, index, selected):
+    def edit(self, index, focus, selected):
 
         if "path" not in self.current_items[index]:
             return
@@ -836,12 +857,15 @@ class MOrgApp(App):
 
         self.display_toolbar = True
         self.display_add = False
-        try:
-            Clock.schedule_once(
-                partial(self.__go_to_line__, self.current_items[index]["lineno"]), 0.1
-            )
-        except KeyError:
-            pass
+
+        if focus:
+            try:
+                Clock.schedule_once(
+                    partial(self.__go_to_line__, self.current_items[index]["lineno"]),
+                    0.2,
+                )
+            except KeyError as err:
+                print(err, self.current_items[index])
 
     def save_note(self, filepath, content):
         if self.stop_events:
