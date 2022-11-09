@@ -289,6 +289,7 @@ android.allow_backup = True
 # (str) The format used to package the app for debug mode (apk or aar).
 # android.debug_artifact = apk
 
+android.accept_sdk_license = True
 #
 # Python for android (p4a) specific
 #
