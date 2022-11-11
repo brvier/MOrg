@@ -6,7 +6,7 @@ A future proof opinionated software to manage your life in plaintext : todo, age
 __author__ = "Benoît HERVIER"
 __copyright__ = "Copyright 2022, Benoît HERVIER"
 __license__ = "MIT"
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __email__ = "b@rvier.fr"
 __status__ = "Developpment"
 
