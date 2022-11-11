@@ -30,14 +30,16 @@ Only task with priority (A) or without priority are displayed on main screen.
 ### Agenda.txt Format
 
 Each line is an event, three format are accepted :
-    
-YYYY-mm-dd event for all day
-YYYY-mm-dd HH:MM event  at hour:minute
-YYYY-mm-dd HH:MM HH:MM event with a start and a end
+````
+YYYY-mm-dd event for all day.  
+YYYY-mm-dd HH:MM event  at hour:minute.  
+YYYY-mm-dd HH:MM HH:MM event with a start and a end.  
+````
 
 ### Expense.txt format
-
+````
 YYYY-mm-dd 000.00 short description
+````
 
 ## Roadmap
 
