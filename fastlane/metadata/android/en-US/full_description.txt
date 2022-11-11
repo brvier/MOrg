@@ -1,0 +1,8 @@
+A future proof opinionated software to manage your life in plaintext :
+
+<ul>
+	<li>todo</li>
+	<li>agenda</li>
+	<li>journal</li>
+	<li>notes</li>
+</ul>

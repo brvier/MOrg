@@ -1,0 +1,1 @@
+A future proof opinionated software to manage your life in plaintext.
