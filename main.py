@@ -6,7 +6,7 @@ A future proof opinionated software to manage your life in plaintext : todo, age
 __author__ = "Benoît HERVIER"
 __copyright__ = "Copyright 2022, Benoît HERVIER"
 __license__ = "MIT"
-__version__ = "0.2.2"
+__version__ = "0.3.0"
 __email__ = "b@rvier.fr"
 __status__ = "Developpment"
 
@@ -59,7 +59,8 @@ EVENT_RE = re.compile(
 )
 TIME_FMT = "%H:%M"
 DATE_FMT = "%Y-%m-%d"
-
+URL_RE = re.compile(r"\b((https?|ftp|file)://\S+)")
+BLANK_RE = re.compile(r"\s")
 
 def rgba(r, g, b, a):
     return r / 255, g / 255, b / 255, a
@@ -206,6 +207,35 @@ class SelectableRecycleBoxLayout(
     """Adds selection and focus behaviour to the view."""
 
 
+class SelectableLabel(RecycleDataViewBehavior, ButtonBehavior, Label):
+    """Add selection support to the Label"""
+
+    index = None
+    selected = BooleanProperty(False)
+    selectable = BooleanProperty(True)
+    #txt_input1 = ObjectProperty(None)
+    #txt_input = ObjectProperty(None)
+
+    def refresh_view_attrs(self, rv, index, data):
+        """Catch and handle the view changes"""
+        self.index = index
+        return super(SelectableLabel, self).refresh_view_attrs(rv, index, data)
+
+    def on_touch_down(self, touch):
+        """Add selection on touch down"""
+        if super(SelectableLabel, self).on_touch_down(touch):
+            return True
+        if self.collide_point(*touch.pos) and self.selectable:
+            return self.parent.select_with_touch(self.index, touch)
+
+    def apply_selection(self, rv, index, is_selected):
+        """Respond to the selection of items in the view."""
+
+        self.selected = is_selected
+        if is_selected:
+            rv.data[index].get("text")
+            
+
 class ToggleLabel(ToggleButtonBehavior, Label):
     active = BooleanProperty(False)
 
@@ -220,6 +250,9 @@ class MOrgRecycleView(RecycleView):
     def __init__(self, **kwargs):
         super(MOrgRecycleView, self).__init__(**kwargs)
 
+class RV(RecycleView):
+    def __init__(self, **kwargs):
+        super(RV, self).__init__(**kwargs)
 
 class MOrgListItem(RecycleDataViewBehavior, ButtonBehavior, BoxLayout):
 
@@ -336,6 +369,53 @@ class MDInput(CodeInput):
         self.cursor = self.get_cursor_from_index(idx)
         self.focus = True
 
+    def on_double_tap(self):
+        index = self.cursor_index()
+        _text = self.text
+        if index > 0:
+            search_start = 0
+            mtch = None
+            line_start = _text.rfind("\n", 0, index)
+
+            for mtch in BLANK_RE.finditer(_text[line_start: index]):
+                pass
+            if mtch:
+                search_start = line_start+1+mtch.start()
+
+ 
+            try:
+                search_end = BLANK_RE.search(_text, index).start()
+            except AttributeError:
+                search_end = len(_text)
+
+            print(_text[search_start: search_end])
+            selected_text = _text[search_start: search_end]
+            g_url = URL_RE.search(_text, search_start, search_end)
+           
+            if g_url:
+                print("Found url: ", g_url.groups()[0])
+                import webbrowser
+                webbrowser.open(g_url.groups()[0])
+                return
+            if selected_text.startswith("[[") and selected_text.endswith("]]"):
+                print("Found internal link: ", selected_text[2:-2])
+                
+                app = App.get_running_app()
+                # FIXME
+                for idx, items in enumerate(app.current_items):
+                    print(items)
+                    if items['itemtype'] != 4:
+                        continue
+                    if items['description'] == selected_text[2:-2]:
+                        Clock.schedule_once(
+                            partial(app.edit, idx, True), 0.2
+                        )
+                        return
+                        
+                return
+
+        super().on_double_tap()
+        
     def do_indent(self, *kwargs):
         index = self.cursor_index()
         if index > 0:
@@ -359,6 +439,55 @@ class MDInput(CodeInput):
             if index > line_start:
                 index -= 2
         self.set_cursor(index)
+
+    def do_heading(self):
+        index = self.cursor_index()
+
+        if index >= 0:
+            _text = self.text
+            line_start = _text.rfind("\n", 0, index)
+            line_end = _text.find("\n", index)
+            if line_end == -1:
+                line_end = len(_text)
+            if line_start < 0:
+                line_start = -1
+
+            idx = _text.find("# ", line_start + 1, line_end)
+            if idx == line_start+1:
+                self.text = "{}{}{}".format(
+                    self.text[: idx],
+                    "## ",
+                    self.text[idx+2:],
+                )
+                self.set_cursor(index + (len(self.text) - len(_text)))
+                return
+
+            idx = _text.find("## ", line_start + 1, line_end)
+            if idx == line_start+1:
+                self.text = "{}{}{}".format(
+                    self.text[: idx],
+                    "### ",
+                    self.text[idx+3:],
+                )
+                self.set_cursor(index + (len(self.text) - len(_text)))
+                return
+
+            idx = _text.find("### ", line_start + 1, line_end)
+            if idx == line_start+1:
+                self.text = "{}{}".format(
+                    self.text[: idx],
+                    self.text[idx+4 :],
+                )
+                self.set_cursor(index + (len(self.text) - len(_text)))
+                return
+            self.text = "{}{}{}".format(
+                self.text[:line_start + 1],
+                "# ",
+                self.text[line_start + 1  :],
+            )
+            self.set_cursor(index + (len(self.text) - len(_text)))
+            return
+
 
     def do_todo(self):
         index = self.cursor_index()
@@ -391,6 +520,7 @@ class MDInput(CodeInput):
                 self.set_cursor(index + (len(self.text) - len(_text)))
 
                 return
+
             idx = _text.find("- [ ]", line_start + 1, line_end)
             if idx >= 0:
                 self.text = "{}{}{}".format(
@@ -474,7 +604,9 @@ class MOrgApp(App):
     current_prefix = StringProperty()
     keyboard_height = NumericProperty(0)
     picker_datetime = ObjectProperty(datetime.datetime.now())
-
+    notes_cache = ListProperty([])
+    filtered_notes = ListProperty([])
+    
     darkmode = BooleanProperty(False)
 
     noteView = None
@@ -516,7 +648,7 @@ class MOrgApp(App):
             print("DARK MODE ? %s" % dark_mode())
             self.darkmode = dark_mode()
         except Exception as err:
-            self.darkmode = False
+            self.darkmode = True
             print(err)
         self.set_darkmode(self.darkmode)
         self.mainWidget = Builder.load_file("main.kv")
@@ -563,6 +695,9 @@ class MOrgApp(App):
             return
         self.noteView.ids.w_textinput.focus = True
         self.noteView.ids.w_textinput.cursor = (0, lineno)
+
+    def insert_text(self, text):
+        self.noteView.ids.w_textinput.insert_text(text)
 
     def load_events(self):
         events = {}
@@ -681,6 +816,7 @@ class MOrgApp(App):
         self.events = self.load_events()
         self.journals = self.load_journals()
         self.notes.clear()
+        self.notes_cache.clear()
 
         for i in self.events.keys():
             d = i.strftime("%y%m") + str(i.day)
@@ -709,6 +845,7 @@ class MOrgApp(App):
                                 path=os.path.join(path, file),
                             )
                         )
+                        self.notes_cache.append(file)
                     except KeyError:
                         self.notes[path] = [
                             Note(
@@ -716,6 +853,7 @@ class MOrgApp(App):
                                 path=os.path.join(path, file),
                             ),
                         ]
+        self.filter_notesrv(None)
 
         self.current_date = datetime.datetime.now().date()
         self.on_current_date(self, self.current_date)
@@ -812,6 +950,12 @@ class MOrgApp(App):
         self.root.transition.direction = "right"
         self.root.current = "main"
         self.load()
+
+    def filter_notesrv(self, text, *kw):
+        if not text:
+            self.filtered_notes = [{'text':t} for t in self.notes_cache]
+        else:
+            self.filtered_notes = [{'text':x} for x in self.notes_cache if text in x ]
 
     def edit(self, index, focus, selected):
 

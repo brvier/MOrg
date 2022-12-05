@@ -8,6 +8,7 @@
 #:import CircularTimePicker kivy.garden.circulardatetimepicker.CircularTimePicker
 #:import MarkdownLexer pygments.lexers.markup.MarkdownLexer 
 #:import TodotxtLexer pygments.lexers.textfmts.TodotxtLexer
+#: import Factory kivy.factory.Factory
 
 <NoteView>:
     id: noteView
@@ -45,24 +46,38 @@
         orientation: 'horizontal'
         spacing:dp(1)
         LabelButton:
-            #color: app.primary_color
-            text: 'Indent'
+            text: '\uf03c'
             on_release: w_textinput.do_indent()
+			font_name:"awesome"
         LabelButton:
-            text: 'Unindent'
+            text: '\uf03b'
             on_release: w_textinput.do_unindent()
-        LabelButton:
-            text: 'x' if type(w_textinput.lexer)==TodotxtLexer else  '[ ]' 
+			font_name:"awesome"
+		LabelButton:
+			text: '\uf1dc' #if type(w_textinput.lexer)==TodotxtLexer else  '[ ]' 
+			on_release: w_textinput.do_heading()
+			font_name:"awesome"
+		LabelButton:
+            text: '\uf14a' #if type(w_textinput.lexer)==TodotxtLexer else  '[ ]' 
             on_release: w_textinput.do_todo()
+			font_name:"awesome"
         LabelButton:
-            text: 'Undo'
+            text: '\uf2ea'
             on_release: w_textinput.do_undo()
+			font_name:"awesome"
         LabelButton:
-            text: 'Redo'
+            text: '\uf2f9'
             on_release: w_textinput.do_redo()
-        LabelButton:
-			text: ''
-			on_release: print("tet")
+			font_name:"awesome"
+		LabelButton:
+			text: '\uf0c1'
+			on_release: Factory.NoteSelector().open()
+			font_name:"awesome"
+		LabelButton:
+			text: '\uf142'
+			on_release: Factory.CommandSelector().open()
+			font_name:"awesome"
+
 	 
 
 <CircularButton>:
@@ -194,7 +209,52 @@
         text: ">"
         on_release:
             app.current_date += Timedelta(months=1)        
- 
+
+<SelectableLabel>:
+	height: dp(32)
+	on_release: app.insert_text("[[{}]]".format(self.text));self.parent.parent.parent.parent.dismiss()
+
+<NoteSelector@ModalView>:
+    size_hint: 1, .75
+    padding: dp(10)
+    pos_hint: {'x': 0, 'y': 0}
+    BoxLayout:
+        orientation: 'vertical'
+        TextInput:
+            id:txtinput_notesrv
+            placeholder: 'filter'
+            height: dp(34)
+            focus: True
+            size_hint: 1, None
+            on_text: app.filter_notesrv(self.text)
+        RV:
+            viewclass: 'SelectableLabel'
+            data: app.filtered_notes 
+            SelectableRecycleBoxLayout
+                default_size: None, None 
+                default_size_hint: 1, None
+                size_hint_y: None
+                height: self.minimum_height
+                orientation: 'vertical'
+                scroll_y: 0             
+
+<CommandSelector@ModalView>:
+    size_hint: 1, .75
+    padding: 10
+    pos_hint: {'x': 0, 'y': 0}
+    BoxLayout:
+        orientation: 'vertical'
+        LabelButton:
+            text: 'Delete note'
+            size_hint_y: None
+            height: dp(48)
+        LabelButton:
+            text: 'Rename note'
+            size_hint_y: None
+            height: 48
+            #on_release: root.dismiss()
+
+
 <DatePicker@BoxLayout>:
     bg_color: (0,0,0,0)
     canvas:
@@ -239,7 +299,6 @@
     height: dp(32) if root.itemtype!=0 else dp(64)
     padding: dp(10), dp(0), dp(0), dp(10)
     size_hint: 1, None
-    #on_selected: app.inverse_todo(root.index, root.selected)
     on_release: app.edit(root.index, root.itemtype!=4, root.selected)
     canvas:
         Color:
@@ -379,7 +438,7 @@ ScreenManager:
                     height: dp(100)
 					font_size: sp(24)
                     size_hint: (1,1) 
-				    color: app.primary_color
+					color: app.primary_color
 				LabelButton:
 					bg_color: app.accent_bg_color
                     text:'>'
@@ -399,40 +458,40 @@ ScreenManager:
                 ToggleLabel:
                     text: "Todo"
                     id: append_todo
-	                size_hint: 1,None
+					size_hint: 1,None
 					height: dp(64)
                 ToggleLabel:
                     text: "Event"
                     id: append_event
-	                size_hint: 1,None
+					size_hint: 1,None
 					height: dp(64)
                 ToggleLabel:
                     text: "Journal"
                     id: append_journal
-	                size_hint: 1,None
+					size_hint: 1,None
 					height: dp(64)
                 ToggleLabel:
                     text: "Expense"
                     id: append_expense
-	                size_hint: 1,None
+					size_hint: 1,None
 					height: dp(64)
                 ToggleLabel:
                     text: "QuickNote"
                     id: append_quicknote
-	                size_hint: 1,None
+					size_hint: 1,None
 					height: dp(64)
                 ToggleLabel:
                     text: "Note"
                     id: append_note
-	                size_hint: 1,None
+					size_hint: 1,None
 					height: dp(64)
 
 			LabelButton:
 				on_release: app.do_add()
-	            bg_color: app.second_accent_bg_color
+				bg_color: app.second_accent_bg_color
 				color: 1,1,1,1
-	            text: '+'
-		        height: '64dp'
+				text: '+'
+				height: '64dp'
 				font_size: sp(24)
 				size_hint: 0.2, None
 				pos_hint: {'center_x': .5}

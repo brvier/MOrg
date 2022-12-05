@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.3.0] - 2022-12-03
+### Changed
+- Use icon in toolbar
+### Added
+- Clickable link
+- internal link menu
+- command menu
+
 ## [0.2.3] - 2022-11-13
 ### Fixed
 - build apk with API 31
