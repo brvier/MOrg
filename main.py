@@ -3,6 +3,7 @@ MOrg
 
 A future proof opinionated software to manage your life in plaintext : todo, agenda, journal and notes.
 """
+import logging
 __author__ = "Benoît HERVIER"
 __copyright__ = "Copyright 2022, Benoît HERVIER"
 __license__ = "MIT"
@@ -41,6 +42,7 @@ from kivy.uix.textinput import TextInput
 from kivy.utils import platform
 from kivy.vector import Vector
 from pygments.lexers.textfmts import TodotxtLexer
+from kivy.factory import Factory
 
 from styles import GithubStyle, GruvboxDarkStyle
 
@@ -62,8 +64,24 @@ DATE_FMT = "%Y-%m-%d"
 URL_RE = re.compile(r"\b((https?|ftp|file)://\S+)")
 BLANK_RE = re.compile(r"\s")
 
+
 def rgba(r, g, b, a):
     return r / 255, g / 255, b / 255, a
+
+
+def orgpath():
+    if platform == "android":
+        from android import mActivity
+
+        context = mActivity.getApplicationContext()
+        return context.getExternalFilesDir(None).getPath()
+
+    return os.path.expanduser("~/Org")
+
+
+logging.basicConfig(filename='%s/debug.log' % orgpath(), level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger = logging.getLogger(__name__)
 
 
 def get_android_vkeyboard_height():
@@ -191,10 +209,38 @@ class Note(Item):
                 datetime.datetime.fromtimestamp(self.modified)
             ),
             "category": self.category,
+
             "path": self.path,
             "lineno": 0,
             "itemtype": 4,
         }
+
+
+class Daily(Item):
+    when = None
+
+    def __init__(self, path, when, lineno=0):
+        super(Daily, self).__init__("", path, lineno)
+        self.when = when
+        self.description = open(self.path, 'r').read()
+
+    def toDict(self):
+        return {
+            "description": self.description,
+            "when": self.when.strftime("%Y-%m-%d %H:%M"),
+            "path": self.path,
+            "lineno": 0,
+            "itemtype": 3,
+        }
+
+    def toDicts(self):
+        return [{
+            "description": line,
+            "when": self.when.strftime("%Y-%m-%d %H:%M"),
+            "path": self.path,
+            "lineno": idx,
+            "itemtype": 3,
+        } for idx, line in enumerate(self.description.split('\n')) if line != ""]
 
 
 class DatePicker(BoxLayout):
@@ -213,8 +259,8 @@ class SelectableLabel(RecycleDataViewBehavior, ButtonBehavior, Label):
     index = None
     selected = BooleanProperty(False)
     selectable = BooleanProperty(True)
-    #txt_input1 = ObjectProperty(None)
-    #txt_input = ObjectProperty(None)
+    # txt_input1 = ObjectProperty(None)
+    # txt_input = ObjectProperty(None)
 
     def refresh_view_attrs(self, rv, index, data):
         """Catch and handle the view changes"""
@@ -234,7 +280,7 @@ class SelectableLabel(RecycleDataViewBehavior, ButtonBehavior, Label):
         self.selected = is_selected
         if is_selected:
             rv.data[index].get("text")
-            
+
 
 class ToggleLabel(ToggleButtonBehavior, Label):
     active = BooleanProperty(False)
@@ -250,9 +296,11 @@ class MOrgRecycleView(RecycleView):
     def __init__(self, **kwargs):
         super(MOrgRecycleView, self).__init__(**kwargs)
 
+
 class RV(RecycleView):
     def __init__(self, **kwargs):
         super(RV, self).__init__(**kwargs)
+
 
 class MOrgListItem(RecycleDataViewBehavior, ButtonBehavior, BoxLayout):
 
@@ -266,7 +314,8 @@ class MOrgListItem(RecycleDataViewBehavior, ButtonBehavior, BoxLayout):
     priority = StringProperty(None)
     path = StringProperty()
     sortkey = None
-    itemtype = NumericProperty(0)  # 0 header, 1 todo, 2 event, 3 journal, 4 note
+    # 0 header, 1 todo, 2 event, 3 journal, 4 note
+    itemtype = NumericProperty(0)
     filename = StringProperty()
     modified = StringProperty()
 
@@ -377,51 +426,49 @@ class MDInput(CodeInput):
             mtch = None
             line_start = _text.rfind("\n", 0, index)
 
-            for mtch in BLANK_RE.finditer(_text[line_start: index]):
+            for mtch in BLANK_RE.finditer(_text[line_start:index]):
                 pass
             if mtch:
-                search_start = line_start+1+mtch.start()
+                search_start = line_start + 1 + mtch.start()
 
- 
             try:
                 search_end = BLANK_RE.search(_text, index).start()
             except AttributeError:
                 search_end = len(_text)
 
-            print(_text[search_start: search_end])
-            selected_text = _text[search_start: search_end]
+            print(_text[search_start:search_end])
+            selected_text = _text[search_start:search_end]
             g_url = URL_RE.search(_text, search_start, search_end)
-           
+
             if g_url:
                 print("Found url: ", g_url.groups()[0])
                 import webbrowser
+
                 webbrowser.open(g_url.groups()[0])
                 return
             if selected_text.startswith("[[") and selected_text.endswith("]]"):
                 print("Found internal link: ", selected_text[2:-2])
-                
+
                 app = App.get_running_app()
                 # FIXME
                 for idx, items in enumerate(app.current_items):
                     print(items)
-                    if items['itemtype'] != 4:
+                    if items["itemtype"] != 4:
                         continue
-                    if items['description'] == selected_text[2:-2]:
-                        Clock.schedule_once(
-                            partial(app.edit, idx, True), 0.2
-                        )
+                    if items["description"] == selected_text[2:-2]:
+                        Clock.schedule_once(partial(app.edit, idx, True), 0.2)
                         return
-                        
+
                 return
 
         super().on_double_tap()
-        
+
     def do_indent(self, *kwargs):
         index = self.cursor_index()
         if index > 0:
             _text = self.text
             line_start = _text.rfind("\n", 0, index)
-            self.text = _text[: line_start + 1] + "  " + _text[line_start + 1 :]
+            self.text = _text[: line_start + 1] + "  " + _text[line_start + 1:]
             if index > line_start:
                 index += 2
 
@@ -434,8 +481,8 @@ class MDInput(CodeInput):
         line_end = _text.find("\n", index)
         if line_end == -1:
             line_end = len(_text)
-        if (_text[line_start + 1 : line_start + 3]) == "  ":
-            self.text = _text[: line_start + 1] + _text[line_start + 3 :]
+        if (_text[line_start + 1: line_start + 3]) == "  ":
+            self.text = _text[: line_start + 1] + _text[line_start + 3:]
             if index > line_start:
                 index -= 2
         self.set_cursor(index)
@@ -453,41 +500,40 @@ class MDInput(CodeInput):
                 line_start = -1
 
             idx = _text.find("# ", line_start + 1, line_end)
-            if idx == line_start+1:
+            if idx == line_start + 1:
                 self.text = "{}{}{}".format(
-                    self.text[: idx],
+                    self.text[:idx],
                     "## ",
-                    self.text[idx+2:],
+                    self.text[idx + 2:],
                 )
                 self.set_cursor(index + (len(self.text) - len(_text)))
                 return
 
             idx = _text.find("## ", line_start + 1, line_end)
-            if idx == line_start+1:
+            if idx == line_start + 1:
                 self.text = "{}{}{}".format(
-                    self.text[: idx],
+                    self.text[:idx],
                     "### ",
-                    self.text[idx+3:],
+                    self.text[idx + 3:],
                 )
                 self.set_cursor(index + (len(self.text) - len(_text)))
                 return
 
             idx = _text.find("### ", line_start + 1, line_end)
-            if idx == line_start+1:
+            if idx == line_start + 1:
                 self.text = "{}{}".format(
-                    self.text[: idx],
-                    self.text[idx+4 :],
+                    self.text[:idx],
+                    self.text[idx + 4:],
                 )
                 self.set_cursor(index + (len(self.text) - len(_text)))
                 return
             self.text = "{}{}{}".format(
-                self.text[:line_start + 1],
+                self.text[: line_start + 1],
                 "# ",
-                self.text[line_start + 1  :],
+                self.text[line_start + 1:],
             )
             self.set_cursor(index + (len(self.text) - len(_text)))
             return
-
 
     def do_todo(self):
         index = self.cursor_index()
@@ -504,17 +550,17 @@ class MDInput(CodeInput):
             print(type(self.lexer))
 
             if type(self.lexer) == TodotxtLexer:
-                if _text[line_start + 1 : line_start + 3] == "x ":
+                if _text[line_start + 1: line_start + 3] == "x ":
                     self.text = "{}{}{}".format(
                         self.text[: line_start + 1],
                         "",
-                        self.text[line_start + 3 :],
+                        self.text[line_start + 3:],
                     )
                 else:
                     self.text = "{}{}{}".format(
                         self.text[: line_start + 1],
                         "x ",
-                        self.text[line_start + 1 :],
+                        self.text[line_start + 1:],
                     )
 
                 self.set_cursor(index + (len(self.text) - len(_text)))
@@ -526,7 +572,7 @@ class MDInput(CodeInput):
                 self.text = "{}{}{}".format(
                     self.text[: idx + 3],
                     "x",
-                    self.text[idx + 4 :],
+                    self.text[idx + 4:],
                 )
             else:
                 idx = _text.find("- [x]", line_start + 1, line_end)
@@ -534,7 +580,7 @@ class MDInput(CodeInput):
                     self.text = "{}{}{}".format(
                         self.text[:idx],
                         "- ",
-                        self.text[idx + 6 :],
+                        self.text[idx + 6:],
                     )
                 else:
                     idx = _text.find("- ", line_start + 1, line_end)
@@ -542,13 +588,13 @@ class MDInput(CodeInput):
                         self.text = "{}{}{}".format(
                             self.text[:idx],
                             "- [ ] ",
-                            self.text[idx + 2 :],
+                            self.text[idx + 2:],
                         )
                     else:
                         self.text = "{}{}{}".format(
                             self.text[: line_start + 1],
                             "- ",
-                            self.text[line_start + 1 :],
+                            self.text[line_start + 1:],
                         )
             self.set_cursor(index + (len(self.text) - len(_text)))
 
@@ -564,7 +610,7 @@ class MDInput(CodeInput):
             _text = self.text
             line_start = _text.rfind("\n", 0, index)
             if line_start > -1:
-                line = _text[line_start + 1 : index]  # noqa:E203
+                line = _text[line_start + 1: index]  # noqa:E203
                 indent = self.re_indent_todo.match(line)
 
                 if indent is None:
@@ -606,7 +652,7 @@ class MOrgApp(App):
     picker_datetime = ObjectProperty(datetime.datetime.now())
     notes_cache = ListProperty([])
     filtered_notes = ListProperty([])
-    
+
     darkmode = BooleanProperty(False)
 
     noteView = None
@@ -618,12 +664,6 @@ class MOrgApp(App):
     events = {}
     journals = {}
     notes = {}
-
-    @property
-    def orgpath(self):
-        if platform == "android":
-            return "/sdcard/Android/data/fr.rvier.morg/files/"
-        return os.path.expanduser("~/Org")
 
     def key_input(self, window, key, scancode, codepoint, modifier):
         # key == 27 means it is waiting for
@@ -672,20 +712,24 @@ class MOrgApp(App):
                     ]
                 )
                 # app_folder = os.path.dirname(os.path.abspath(__file__))
+                Clock.schedule_once(self.load, 0.1)
 
             except Exception as err:
                 print(err)
 
+        else:
+            Clock.schedule_once(self.load, 0.2)
         # Horrible workarround on android where sometime py intepreter return FileNotFoundError
         # reason or maybe permission not yet ack
-
-        while True:
-            try:
-                self.load()
-                break
-            except FileNotFoundError:
-                time.sleep(0.1)
-                continue
+        # while True:
+        #    try:
+        #        self.load()
+        #        break
+        #    except FileNotFoundError as err:
+        #        print("INIT LATER {}".format(err))
+        #        time.sleep(0.1)
+        #        raise err
+        #        continue
 
     def __go_to_line__(self, lineno, dts=None):
         # col, row = self.noteView.ids.w_textinput.get_cursor_from_index(idx)
@@ -701,7 +745,7 @@ class MOrgApp(App):
 
     def load_events(self):
         events = {}
-        pth = os.path.join(self.orgpath, "agenda.txt")
+        pth = os.path.join(orgpath(), "agenda.txt")
         try:
             is_sorted = False
             with open(pth, "r") as fh:
@@ -715,13 +759,16 @@ class MOrgApp(App):
                         strdate, strstart, strend, description = g.groups()
                         dt = datetime.datetime.strptime(strdate, DATE_FMT)
                         try:
-                            dts = datetime.datetime.strptime(strstart, TIME_FMT)
-                            when = datetime.datetime.combine(dt.date(), dts.time())
+                            dts = datetime.datetime.strptime(
+                                strstart, TIME_FMT)
+                            when = datetime.datetime.combine(
+                                dt.date(), dts.time())
                         except (ValueError, AttributeError, TypeError):
                             when = dt
                         try:
                             dte = datetime.datetime.strptime(strend, TIME_FMT)
-                            end = datetime.datetime.combine(dt.date(), dte.time())
+                            end = datetime.datetime.combine(
+                                dt.date(), dte.time())
                         except (ValueError, AttributeError, TypeError):
                             end = None
                         e = Event(
@@ -744,9 +791,20 @@ class MOrgApp(App):
             open(pth, "a").close()
         return events
 
+    def delete_current_note(self):
+        print("Delete current note")
+        Factory.ConfirmModal().open()
+        # TODO
+
+    def rename_current_note(self, new_note):
+        print("Rename current note {}".format(new_note))
+        # TODO
+
     def load_journals(self):
         journals = {}
-        pth = os.path.join(self.orgpath, "journal")
+        pth = os.path.join(orgpath(), "journal")
+        if not os.path.exists(pth):
+            os.makedirs(pth)
         fs = os.listdir(pth)
         for f in fs:
             if f.startswith("."):
@@ -771,19 +829,27 @@ class MOrgApp(App):
                         ]
         return journals
 
+    def check_storage_folder(self):
+        if not os.path.exists(orgpath()):
+            os.makedirs(orgpath())
+        if not os.path.exists(os.path.join(orgpath(), 'notes')):
+            os.makedirs(os.path.join(orgpath(), 'notes'))
+
     def load_todos(self):
-        donetxt = pytodotxt.TodoTxt(os.path.join(self.orgpath, "done.txt"))
-        todotxt = pytodotxt.TodoTxt(os.path.join(self.orgpath, "todo.txt"))
+        donetxt = pytodotxt.TodoTxt(os.path.join(orgpath(), "done.txt"))
+        todotxt = pytodotxt.TodoTxt(os.path.join(orgpath(), "todo.txt"))
 
         try:
             todotxt.parse()
         except FileNotFoundError:
-            open(os.path.join(self.orgpath, "todo.txt"), "a").close()
+            from pathlib import Path
+            Path(os.path.join(orgpath(), "todo.txt")).touch()
 
         try:
             donetxt.parse()
         except FileNotFoundError:
-            open(os.path.join(self.orgpath, "done.txt"), "a").close()
+            from pathlib import Path
+            Path(os.path.join(orgpath(), "done.txt")).touch()
 
         for task in todotxt.tasks:
             if task.is_completed:
@@ -801,8 +867,8 @@ class MOrgApp(App):
             if not task.is_completed:
                 t = Todo(
                     task.description,
-                    path=os.path.join(self.orgpath, "todo.txt"),
-                    lineno=task.linenr,
+                    path=os.path.join(orgpath(), "todo.txt"),
+                    lineno=task.linenr+1,
                     priority=task.priority,
                 )
                 if (t.priority is None) or (t.priority == "A"):
@@ -811,7 +877,10 @@ class MOrgApp(App):
                     todos["B"].append(t)
         return todos
 
-    def load(self):
+    def load(self, *kwargs
+             ):
+        self.check_storage_folder()
+
         self.todos = self.load_todos()
         self.events = self.load_events()
         self.journals = self.load_journals()
@@ -819,16 +888,16 @@ class MOrgApp(App):
         self.notes_cache.clear()
 
         for i in self.events.keys():
-            d = i.strftime("%y%m") + str(i.day)
+            d = i.strftime("%Y%m") + str(i.day)
             if d not in self.event_busy_days:
                 self.event_busy_days.append(d)
 
         for i in self.journals.keys():
-            d = i.strftime("%y%m") + str(i.day)
+            d = i.strftime("%Y%m") + str(i.day)
             if d not in self.journal_busy_days:
                 self.journal_busy_days.append(d)
 
-        for path, dirs, files in os.walk(os.path.join(self.orgpath, "notes")):
+        for path, dirs, files in os.walk(os.path.join(orgpath(), "notes")):
             dirs = [d for d in dirs if not d.startswith(".")]
             files = [f for f in files if not f.startswith(".")]
             if any([prt.startswith(".") for prt in path.split("/")]):
@@ -873,10 +942,10 @@ class MOrgApp(App):
 
         if self.root.ids.append_input.text:
             if self.root.ids.append_todo.state == "down":
-                with (open(os.path.join(self.orgpath, "todo.txt"), "a")) as fh:
+                with (open(os.path.join(orgpath(), "todo.txt"), "a")) as fh:
                     fh.write("%s\n" % self.root.ids.append_input.text)
             elif self.root.ids.append_event.state == "down":
-                with (open(os.path.join(self.orgpath, "agenda.txt"), "a")) as fh:
+                with (open(os.path.join(orgpath(), "agenda.txt"), "a")) as fh:
                     fh.write(
                         "\n{:%Y-%m-%d %H:%M} {}\n".format(
                             self.picker_datetime, self.root.ids.append_input.text
@@ -886,7 +955,7 @@ class MOrgApp(App):
                 with (
                     open(
                         os.path.join(
-                            self.orgpath,
+                            orgpath(),
                             "journal",
                             "%s.txt" % datetime.datetime.now().strftime("%Y-%m-%d"),
                         ),
@@ -904,7 +973,7 @@ class MOrgApp(App):
                 with (
                     open(
                         os.path.join(
-                            self.orgpath,
+                            orgpath(),
                             "expense.txt",
                         ),
                         "a",
@@ -921,7 +990,7 @@ class MOrgApp(App):
                 with (
                     open(
                         os.path.join(
-                            self.orgpath,
+                            orgpath(),
                             "quicknote.txt",
                         ),
                         "a",
@@ -930,9 +999,10 @@ class MOrgApp(App):
                     fh.write("%s\n" % (self.root.ids.append_input.text,))
             elif self.root.ids.append_note.state == "down":
                 pth = os.path.join(
-                    self.orgpath,
+                    orgpath(),
                     "notes",
-                    re.sub(r"[^0-9a-zA-Z]+", "_", self.root.ids.append_input.text)
+                    re.sub(r"[^0-9a-zA-Z]+", "_",
+                           self.root.ids.append_input.text)
                     + ".md",
                 )
                 Path(pth).touch()
@@ -953,9 +1023,10 @@ class MOrgApp(App):
 
     def filter_notesrv(self, text, *kw):
         if not text:
-            self.filtered_notes = [{'text':t} for t in self.notes_cache]
+            self.filtered_notes = [{"text": t} for t in self.notes_cache]
         else:
-            self.filtered_notes = [{'text':x} for x in self.notes_cache if text in x ]
+            self.filtered_notes = [{"text": x}
+                                   for x in self.notes_cache if text in x]
 
     def edit(self, index, focus, selected):
 
@@ -976,7 +1047,7 @@ class MOrgApp(App):
 
         note = {
             "title": os.path.splitext(os.path.basename(pth))[0],
-            "category": os.path.dirname(os.path.relpath(pth, self.orgpath)),
+            "category": os.path.dirname(os.path.relpath(pth, orgpath())),
             "last_modification": time.asctime(time.localtime(mtime)),
             "mtime": mtime,
             "content": "",
@@ -1005,7 +1076,8 @@ class MOrgApp(App):
         if focus:
             try:
                 Clock.schedule_once(
-                    partial(self.__go_to_line__, self.current_items[index]["lineno"]),
+                    partial(self.__go_to_line__,
+                            self.current_items[index]["lineno"]),
                     0.2,
                 )
             except KeyError as err:
@@ -1019,7 +1091,8 @@ class MOrgApp(App):
             fh.write(content.encode("utf-8"))
 
     def del_note(self, note_index):
-        path = os.path.join(self.notes_fn, self.notes[note_index]["title"] + ".md")
+        path = os.path.join(
+            self.notes_fn, self.notes[note_index]["title"] + ".md")
         print("Deleting path ", path)
         del self.notes[note_index]
         self.sync()
@@ -1084,7 +1157,8 @@ class MOrgApp(App):
             self.listitem_selected_bgcolor = [1, 1, 1, 1]
             self.listitem_bgcolor = [1, 1, 1, 1]
             self.listitem_icon_color = [206 / 255, 155 / 255, 113 / 255, 1]
-            self.listitem_selected_icon_color = [206 / 255, 155 / 255, 113 / 255, 1]
+            self.listitem_selected_icon_color = [
+                206 / 255, 155 / 255, 113 / 255, 1]
             self.listitem_color = [0, 0, 0, 1]
             self.listitem_selected_color = [0, 0, 0, 1]
             self.listitem_subcolor = [0.1, 0.1, 0.1, 1]
@@ -1094,12 +1168,12 @@ class MOrgApp(App):
             self.editor_pygments_style = GithubStyle
 
     def touch(self, filename):
-        p = os.path.join(self.orgpath, filename)
+        p = os.path.join(orgpath(), filename)
         if not os.path.exists(p):
             open(p, "a").close()
 
     def on_current_date(self, s, d, **kw):
-        self.current_prefix = self.current_date.strftime("%y%m")
+        self.current_prefix = self.current_date.strftime("%Y%m")
         self.root.ids.scrollview.scroll_y = 1
         # filter current items from main item
         self.current_items.clear()
@@ -1139,7 +1213,7 @@ class MOrgApp(App):
             ).toDict()
         )
 
-        self.touch("expenses.txt")
+        self.touch("expense.txt")
         self.touch("quicknote.txt")
 
         for name in [
@@ -1153,7 +1227,7 @@ class MOrgApp(App):
             self.current_items.append(
                 Note(
                     description=name,
-                    path=os.path.join(self.orgpath, name),
+                    path=os.path.join(orgpath(), name),
                 ).toDict()
             )
 
@@ -1162,7 +1236,7 @@ class MOrgApp(App):
 
                 self.current_items.append(
                     Item(
-                        description=os.path.relpath(k, self.orgpath),
+                        description=os.path.relpath(k, orgpath()),
                         path=None,
                         lineno=None,
                     ).toDict()
@@ -1178,4 +1252,7 @@ if __name__ == "__main__":
         name="awesome", fn_regular="data/font_awesome_5_free_solid_900.otf"
     )
     app = MOrgApp()
-    app.run()
+    try:
+        app.run()
+    except Exception as err:
+        logger.error(err)

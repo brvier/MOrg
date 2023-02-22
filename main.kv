@@ -6,9 +6,9 @@
 #:import NoTransition kivy.uix.screenmanager.NoTransition
 #:import Window kivy.core.window.Window
 #:import CircularTimePicker kivy.garden.circulardatetimepicker.CircularTimePicker
-#:import MarkdownLexer pygments.lexers.markup.MarkdownLexer 
+#:import MarkdownLexer pygments.lexers.markup.MarkdownLexer
 #:import TodotxtLexer pygments.lexers.textfmts.TodotxtLexer
-#: import Factory kivy.factory.Factory
+#:import Factory kivy.factory.Factory
 
 <NoteView>:
     id: noteView
@@ -19,7 +19,7 @@
             rgba: app.bg_color
         Rectangle:
             pos: self.pos
-            size: self.size 
+            size: self.size
     size_hint: 1,1
     ScrollView:
         size_hint: 1, 1
@@ -54,11 +54,11 @@
             on_release: w_textinput.do_unindent()
 			font_name:"awesome"
 		LabelButton:
-			text: '\uf1dc' #if type(w_textinput.lexer)==TodotxtLexer else  '[ ]' 
+			text: '\uf1dc' #if type(w_textinput.lexer)==TodotxtLexer else  '[ ]'
 			on_release: w_textinput.do_heading()
 			font_name:"awesome"
 		LabelButton:
-            text: '\uf14a' #if type(w_textinput.lexer)==TodotxtLexer else  '[ ]' 
+            text: '\uf14a' #if type(w_textinput.lexer)==TodotxtLexer else  '[ ]'
             on_release: w_textinput.do_todo()
 			font_name:"awesome"
         LabelButton:
@@ -78,7 +78,7 @@
 			on_release: Factory.CommandSelector().open()
 			font_name:"awesome"
 
-	 
+
 
 <CircularButton>:
     text: ''
@@ -103,7 +103,7 @@
     font_size:"16sp"
     size_hint: None, None
     size: dp(48), dp(48)
-    
+
 <LabelButton@ButtonBehavior+Label>:
     bg_color: app.header_bg_color
     canvas.before:
@@ -118,7 +118,7 @@
     size_hint:1,1
 
     disabled: True if self.text == "" else False
-        
+
 <Day@ButtonBehavior+Label>:
     canvas.before:
         Color:
@@ -145,7 +145,7 @@
     background_color: app.bg_color
     disabled: True if self.text == "" else False
     on_release:
-        app.current_date = app.current_date.replace(day=int(self.text)) 
+        app.current_date = app.current_date.replace(day=int(self.text))
 
 <DayLabel@Label>:
     canvas.before:
@@ -208,14 +208,14 @@
     LabelButton:
         text: ">"
         on_release:
-            app.current_date += Timedelta(months=1)        
+            app.current_date += Timedelta(months=1)
 
 <SelectableLabel>:
 	height: dp(32)
 	on_release: app.insert_text("[[{}]]".format(self.text));self.parent.parent.parent.parent.dismiss()
 
 <NoteSelector@ModalView>:
-    size_hint: 1, .75
+    size_hint: 1, 0.75
     padding: dp(10)
     pos_hint: {'x': 0, 'y': 0}
     BoxLayout:
@@ -223,23 +223,40 @@
         TextInput:
             id:txtinput_notesrv
             placeholder: 'filter'
-            height: dp(34)
+            height: dp(38)
             focus: True
             size_hint: 1, None
             on_text: app.filter_notesrv(self.text)
         RV:
             viewclass: 'SelectableLabel'
-            data: app.filtered_notes 
+            data: app.filtered_notes
             SelectableRecycleBoxLayout
-                default_size: None, None 
+                default_size: None, None
                 default_size_hint: 1, None
                 size_hint_y: None
                 height: self.minimum_height
                 orientation: 'vertical'
-                scroll_y: 0             
+                scroll_y: 0
+
+<RenameModal@ModalView>:
+    size_hint: 1, None
+    padding: 10
+    pos_hint: {'x': 0, 'y': 0}
+    text: 'newname.md'
+    BoxLayout:
+        orientation: 'vertical'
+        TextInput:
+            text: root.text
+            size_hint_y: None
+            height: dp(38)
+        LabelButton:
+            text: 'Rename'
+            size_hint_y: None
+            height: 48
+			on_release: root.dismiss();app.rename_current_note(root.text)
 
 <CommandSelector@ModalView>:
-    size_hint: 1, .75
+    size_hint: 1, None
     padding: 10
     pos_hint: {'x': 0, 'y': 0}
     BoxLayout:
@@ -247,12 +264,34 @@
         LabelButton:
             text: 'Delete note'
             size_hint_y: None
-            height: dp(48)
+            height: dp(38)
+			on_release: root.dismiss();Factory.ConfirmModal().open()
         LabelButton:
             text: 'Rename note'
             size_hint_y: None
             height: 48
-            #on_release: root.dismiss()
+			on_release: root.dismiss();Factory.RenameModal().open()
+
+<ConfirmModal@ModalView>:
+    size_hint: 1, None
+    padding: 10
+    pos_hint: {'x': 0, 'y': 0}
+    BoxLayout:
+        orientation: 'vertical'
+        Label:
+            text: 'Are you sure ?'
+        BoxLayout:
+            orientation: 'horizontal'
+            LabelButton:
+                text: 'Cancel'
+                size_hint_y: None
+                height: dp(38)
+                on_release: root.dismiss()
+            LabelButton:
+                text: 'Delete'
+                size_hint_y: None
+                height: 48
+                on_release: root.dismiss();app.delete_current_note()
 
 
 <DatePicker@BoxLayout>:
@@ -263,7 +302,7 @@
         Rectangle:
             pos:self.pos
             size: self.size
-            
+
     months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     calendar: Calendar()
     days: [(i if i > 0 else "") for i in self.calendar.itermonthdays(app.current_date.year, app.current_date.month)] + [""] * 14
@@ -288,12 +327,12 @@
 <MOrgRecycleView>:
     viewclass: 'MOrgListItem'
     SelectableRecycleBoxLayout
-        default_size: None, None 
+        default_size: None, None
         default_size_hint: 1, None
         size_hint_y: None
         height: self.minimum_height
         orientation: 'vertical'
-        scroll_y: 0        
+        scroll_y: 0
 
 <MOrgListItem>:
     height: dp(32) if root.itemtype!=0 else dp(64)
@@ -305,7 +344,7 @@
             rgba: app.listitem_selected_bgcolor if root.itemtype==0 else app.listitem_bgcolor
         Rectangle:
             pos: self.pos
-            size: self.size 
+            size: self.size
     BoxLayout:
         size_hint: 1, 1
         orientation: 'horizontal'
@@ -317,7 +356,7 @@
             text: "" if root.itemtype == 0 else ("\uf111" if root.itemtype == 1 else ("\uf133" if root.itemtype == 2 else ("\uf1ea" if root.itemtype==3 else "\uf249")))
             pos_hint: {'center_y': 0.5}
             color: app.primary_color if root.itemtype == 0 else (app.todo_color if root.itemtype == 1 else (app.event_color if root.itemtype == 2 else (app.journal_color if root.itemtype == 3 else app.note_color)))
-            
+
         Widget:
             size_hint: None, 1
             width: dp(10) if root.itemtype != 0 else dp(0)
@@ -325,7 +364,7 @@
         Label:
             text: root.time + " " + root.description if root.itemtype ==2 else root.description
             halign: 'left'
-            size_hint: 1, 1 
+            size_hint: 1, 1
             text_size: self.size
             shorten: True
             color: app.listitem_selected_color if root.selected else app.listitem_color
@@ -340,7 +379,7 @@
         Rectangle:
             pos: self.pos
             size: self.size
-            
+
 
 <ToggleLabel>
     group: "type"
@@ -351,7 +390,7 @@
             rgba: app.selected_accent_bg_color if self.state == "down" else app.accent_bg_color
         RoundedRectangle:
             pos: self.pos
-            size: self.size 
+            size: self.size
 			radius: [(10, 10), (10, 10), (10, 10), (10, 10)]
 
 ScreenManager:
@@ -386,12 +425,12 @@ ScreenManager:
 
                 MOrgRecycleView:
                     id: rv
-                    data: app.current_items 
-        
+                    data: app.current_items
+
 
         AwesomeCircularButton:
             bg_color: .9,.2, .2, 1
-            pos: self.parent.width - dp(80), dp(16) 
+            pos: self.parent.width - dp(80), dp(16)
             size_hint: None, None
             font_size: "24sp"
             text: '\uf271'
@@ -408,14 +447,14 @@ ScreenManager:
             size_hint: 1,1
             orientation: 'vertical'
 
-            MTextInput: 
+            MTextInput:
                 padding:dp(20)
                 id: append_input
                 size_hint: 1,1
                 focus: False
                 background_color: app.editor_bgcolor
                 foreground_color: app.editor_textcolor
-          
+
             BoxLayout:
                 size_hint: 1,None
                 height: dp(100) if append_event.state=="down" else dp(0)
@@ -437,7 +476,7 @@ ScreenManager:
                     opacity: 1 if append_event.state == "down" else 0
                     height: dp(100)
 					font_size: sp(24)
-                    size_hint: (1,1) 
+                    size_hint: (1,1)
 					color: app.primary_color
 				LabelButton:
 					bg_color: app.accent_bg_color
@@ -495,7 +534,7 @@ ScreenManager:
 				font_size: sp(24)
 				size_hint: 0.2, None
 				pos_hint: {'center_x': .5}
-			
+
 			Widget:
 				size_hint: 1, None
 				height: dp(10)
