@@ -91,7 +91,7 @@ def get_android_vkeyboard_height():
         # for a unknow reason keyboard height can be negative when closed... and
         # an offset persists when open : dirty work arround
         h = android.get_keyboard_height()
-        print(h)
+        print(h, vkeyboard_offset)
         if not vkeyboard_offset:
             if h < 0:
                 vkeyboard_offset = -h
@@ -700,6 +700,7 @@ class MOrgApp(App):
 
     def __init__later__(self, dt, **kv):
         print("INIT LATER")
+        get_android_vkeyboard_height()
         if platform == "android":
             from android.permissions import Permission, request_permissions
 
@@ -793,7 +794,10 @@ class MOrgApp(App):
 
     def delete_current_note(self):
         print("Delete current note")
-        Factory.ConfirmModal().open()
+        self.root.current = "main"
+        os.remove(self.noteView.filepath)
+        self.load()
+        # Factory.ConfirmModal().open()
         # TODO
 
     def rename_current_note(self, new_note):
