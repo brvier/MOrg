@@ -797,12 +797,11 @@ class MOrgApp(App):
         self.root.current = "main"
         os.remove(self.noteView.filepath)
         self.load()
-        # Factory.ConfirmModal().open()
-        # TODO
 
     def rename_current_note(self, new_note):
         print("Rename current note {}".format(new_note))
         # TODO
+        print(self.noteView.filepath, os.path.join(orgpath(), new_note))
 
     def load_journals(self):
         journals = {}
