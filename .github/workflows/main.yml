@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build with Buildozer
-        uses: brvier/buildozer-action@v1
+        uses: brvier/buildozer-action@d066834ee1514ba414c57e30b240d0934ca27db3
         id: buildozer
         with:
           workdir: .
