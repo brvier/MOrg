@@ -269,7 +269,7 @@
         LabelButton:
             text: 'Rename note'
             size_hint_y: None
-            height: 48
+            height: dp(38)
 			on_release: root.dismiss();Factory.RenameModal().open()
 
 <ConfirmModal@ModalView>:
@@ -290,7 +290,7 @@
             LabelButton:
                 text: 'Delete'
                 size_hint_y: None
-                height: 48
+                height: dp(38)
                 on_release: root.dismiss();app.delete_current_note()
 
 
