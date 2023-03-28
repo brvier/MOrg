@@ -7,7 +7,7 @@ import logging
 __author__ = "Benoît HERVIER"
 __copyright__ = "Copyright 2022, Benoît HERVIER"
 __license__ = "MIT"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __email__ = "b@rvier.fr"
 __status__ = "Developpment"
 
