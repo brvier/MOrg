@@ -1,8 +1,16 @@
 # Change Log
 All notable changes to this project will be documented in this file.
- 
+
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
+
+## [0.3.1] - 2023-03-28
+### Fixed
+- Unused and missing import
+- Keyboard height
+- height of confirmation button
+### Added
+- modals for deleting, renaming, filtering notes
 
 ## [0.3.0] - 2022-12-03
 ### Changed
@@ -31,7 +39,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - time selector when adding event
 ### Changed
 - add page for adding event/todo/expense
-### Fixed 
+### Fixed
 - keyboard
 
 ## [0.1.1] - 2022-09-22
