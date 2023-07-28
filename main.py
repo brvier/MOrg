@@ -7,7 +7,7 @@ import logging
 __author__ = "Benoît HERVIER"
 __copyright__ = "Copyright 2022, Benoît HERVIER"
 __license__ = "MIT"
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 __email__ = "b@rvier.fr"
 __status__ = "Developpment"
 
@@ -251,6 +251,39 @@ class SelectableRecycleBoxLayout(
     FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout
 ):
     """Adds selection and focus behaviour to the view."""
+
+
+class SelectableNote(RecycleDataViewBehavior, ButtonBehavior, BoxLayout):
+    """Add selection support to the Label"""
+
+    index = None
+    selected = BooleanProperty(False)
+    selectable = BooleanProperty(True)
+    smalltext = StringProperty("")
+    text = StringProperty("")
+    lineno = NumericProperty(0)
+
+    # txt_input1 = ObjectProperty(None)
+    # txt_input = ObjectProperty(None)
+
+    def refresh_view_attrs(self, rv, index, data):
+        """Catch and handle the view changes"""
+        self.index = index
+        return super(SelectableNote, self).refresh_view_attrs(rv, index, data)
+
+    def on_touch_down(self, touch):
+        """Add selection on touch down"""
+        if super(SelectableNote, self).on_touch_down(touch):
+            return True
+        if self.collide_point(*touch.pos) and self.selectable:
+            return self.parent.select_with_touch(self.index, touch)
+
+    def apply_selection(self, rv, index, is_selected):
+        """Respond to the selection of items in the view."""
+
+        self.selected = is_selected
+        if is_selected:
+            rv.data[index].get("text")
 
 
 class SelectableLabel(RecycleDataViewBehavior, ButtonBehavior, Label):
@@ -744,6 +777,39 @@ class MOrgApp(App):
     def insert_text(self, text):
         self.noteView.ids.w_textinput.insert_text(text)
 
+    def search_text(self, text):
+        res = []
+        for idx, item in self.current_items:
+            pth = item.path
+            print(pth)
+            try:
+                with open(pth, 'r') as fh:
+                    for lineno, line in enumerate(fh.readlines()):
+                        if text in line.lower():
+                            res.append(
+                                (os.path.relpath(pth, orgpath()), idx, lineno, line))
+            except UnicodeDecodeError:
+                continue
+        return res
+
+    def search_text_file(self, text):
+        res = []
+        text = text.lower()
+        for (dpath, dnames, filenames) in os.walk(orgpath()):
+            for f in filenames:
+                if not f.endswith('.txt') and not f.endswith('.md'):
+                    continue
+                pth = os.path.join(dpath, f)
+                try:
+                    with open(pth, 'r') as fh:
+                        for idx, line in enumerate(fh.readlines()):
+                            if text in line.lower():
+                                res.append(
+                                    (os.path.relpath(pth, orgpath()), idx, line))
+                except UnicodeDecodeError:
+                    continue
+        return res
+
     def load_events(self):
         events = {}
         pth = os.path.join(orgpath(), "agenda.txt")
@@ -917,7 +983,8 @@ class MOrgApp(App):
                                 path=os.path.join(path, file),
                             )
                         )
-                        self.notes_cache.append(file)
+                        self.notes_cache.append(os.path.join(
+                            os.path.relpath(path, orgpath()), file))
                     except KeyError:
                         self.notes[path] = [
                             Note(
@@ -1028,11 +1095,38 @@ class MOrgApp(App):
         if not text:
             self.filtered_notes = [{"text": t} for t in self.notes_cache]
         else:
+            text = text.lower()
             self.filtered_notes = [{"text": x}
-                                   for x in self.notes_cache if text in x]
+                                   for x in self.notes_cache if text in x.lower()]
+
+    def filter_notesearch(self, text, *kw):
+        if not text:
+            self.filtered_notes = [{"text": t} for t in self.notes_cache]
+        else:
+            text = text.lower()
+            self.filtered_notes = [{"text": x, "smalltext": "In title"}
+                                   for x in self.notes_cache if text in x.lower()]
+            try:
+                self.filtered_notes += [{"text": x[0], "smalltext": "(Line {}) : {}".format(x[2], x[3]),
+                                         "lineno": x[2], "idx": x[1]}
+                                        for x in self.search_text(text)]
+            except Exception:
+                pass
+
+    def edit_at(self, index, focus, lineno):
+        # self.current_items[index]["lineno"] = lineno
+        pth = os.path.join(orgpath(), app.filtered_notes[index]['text'])
+        for idx, item in enumerate(self.current_items):
+            if 'path' not in item:
+                continue
+            if item['path'] == pth:
+                print("edit")
+                self.edit(idx, focus, False)
+                print(dir(self.root.ids), self.root.ids)
+
+                return
 
     def edit(self, index, focus, selected):
-
         if "path" not in self.current_items[index]:
             return
         if self.current_items[index]["itemtype"] == 0:
@@ -1041,7 +1135,7 @@ class MOrgApp(App):
         self.root.transition.direction = "left"
         self.root.current = "editor"
 
-        print(self.current_items[index])
+        print("DEBUG %s" % self.current_items[index])
         pth = self.current_items[index]["path"]
         try:
             mtime = os.path.getmtime(pth)
@@ -1139,7 +1233,7 @@ class MOrgApp(App):
             self.listitem_selected_icon_color = [1, 1, 1, 1]
             self.listitem_color = [1, 1, 1, 1]
             self.listitem_selected_color = [1, 1, 1, 1]
-            self.listitem_subcolor = [1, 1, 1, 1]
+            self.listitem_subcolor = [0.9, 0.9, 0.9, 1]
             self.listitem_selected_subcolor = [1, 1, 1, 1]
             self.editor_bgcolor = [0.1, 0.1, 0.1, 1]
             self.editor_textcolor = [1, 1, 1, 1]

@@ -211,7 +211,24 @@
 
 <SelectableLabel>:
 	height: dp(32)
-	on_release: app.insert_text("[[{}]]".format(self.text));self.parent.parent.parent.parent.dismiss()
+	on_release: app.insert_text("[[{}]]".format(self.text));self.parent.parent.parent.parent.dismiss() # ouch
+
+<SelectableNote>:
+    on_release: app.edit_at(root.index, True, root.lineno);root.parent.parent.parent.parent.dismiss() # ouch
+    height: dp(42)
+    orientation: "vertical"
+    Label:
+        text: root.text
+        text_size: self.size
+        halign: 'left'
+        valign: 'bottom'
+    Label:
+        text: root.smalltext
+        font_size: sp(11)
+        text_size: self.size
+        halign: 'left'
+        valign: 'top'
+        color: app.listitem_subcolor
 
 <NoteSelector@ModalView>:
     size_hint: 1, 0.75
@@ -228,6 +245,30 @@
             on_text: app.filter_notesrv(self.text)
         RV:
             viewclass: 'SelectableLabel'
+            data: app.filtered_notes
+            SelectableRecycleBoxLayout
+                default_size: None, None
+                default_size_hint: 1, None
+                size_hint_y: None
+                height: self.minimum_heightkv
+                orientation: 'vertical'
+                scroll_y: 0
+
+<NoteSearch@ModalView>:
+    size_hint: 1, 0.75
+    padding: dp(10)
+    pos_hint: {'x': 0, 'y': 0}
+    BoxLayout:
+        orientation: 'vertical'
+        TextInput:
+            id:txtinput_notesrv
+            placeholder: 'filter'
+            height: dp(38)
+            focus: True
+            size_hint: 1, None
+            on_text: app.filter_notesearch(self.text)
+        RV:
+            viewclass: 'SelectableNote'
             data: app.filtered_notes
             SelectableRecycleBoxLayout
                 default_size: None, None
@@ -426,6 +467,16 @@ ScreenManager:
                     id: rv
                     data: app.current_items
 
+
+        AwesomeCircularButton:
+            bg_color: .84,.6, .12, 1
+            pos: self.parent.width - dp(80), dp(100)
+            size_hint: None, None
+            font_size: "24sp"
+            text: '\uf002'
+            height: '64dp'
+            width: '64dp'
+            on_release: Factory.NoteSearch().open()
 
         AwesomeCircularButton:
             bg_color: .9,.2, .2, 1

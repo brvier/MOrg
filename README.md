@@ -31,9 +31,9 @@ Only task with priority (A) or without priority are displayed on main screen.
 
 Each line is an event, three format are accepted :
 ````
-YYYY-mm-dd event for all day.  
-YYYY-mm-dd HH:MM event  at hour:minute.  
-YYYY-mm-dd HH:MM HH:MM event with a start and a end.  
+YYYY-mm-dd event for all day.
+YYYY-mm-dd HH:MM event  at hour:minute.
+YYYY-mm-dd HH:MM HH:MM event with a start and a end.
 ````
 
 ### Expense.txt format
@@ -54,7 +54,11 @@ YYYY-mm-dd 000.00 short description
 - [x] Add page
 - [ ] rename a note
 - [ ] archive a note
-- [ ] search
+- [x] search
+  - [x] fix note opening in search
+- [ ] Optimizations
+  - [ ] lazy loading
+  - [ ] cleaning code
 
 ## Sync
 

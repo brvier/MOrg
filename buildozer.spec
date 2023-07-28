@@ -37,7 +37,7 @@ version.filename = %(source.dir)s/main.py
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,git+https://github.com/kivy/pyjnius,kivy,pytodotxt,dateutil,pygments,humanize,kvdroid,plyer
+requirements = python3,pyjnius,kivy,pytodotxt,pygments,humanize,kvdroid,plyer,python-dateutil
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -50,7 +50,7 @@ presplash.filename = %(source.dir)s/data/splashscreen.png
 icon.filename = %(source.dir)s/data/icon_512.png
 
 # (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
-orientation = portrait
+orientation = portrait, landscape
 
 # (list) List of service to declare
 #services = NAME:ENTRYPOINT_TO_PY,NAME2:ENTRYPOINT2_TO_PY
