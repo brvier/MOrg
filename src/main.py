@@ -1,7 +1,8 @@
 """
 MOrg
 
-A future proof opinionated software to manage your life in plaintext : todo, agenda, journal and notes.
+A future proof opinionated software to manage your life in plaintext :
+todo, agenda, journal and notes.
 """
 import logging
 __author__ = "Benoît HERVIER"
@@ -42,7 +43,6 @@ from kivy.uix.textinput import TextInput
 from kivy.utils import platform
 from kivy.vector import Vector
 from pygments.lexers.textfmts import TodotxtLexer
-from kivy.factory import Factory
 
 from styles import GithubStyle, GruvboxDarkStyle
 
@@ -937,7 +937,7 @@ class MOrgApp(App):
                 t = Todo(
                     task.description,
                     path=os.path.join(orgpath(), "todo.txt"),
-                    lineno=task.linenr+1,
+                    lineno=task.linenr + 1,
                     priority=task.priority,
                 )
                 if (t.priority is None) or (t.priority == "A"):
@@ -1338,7 +1338,9 @@ class MOrgApp(App):
                         lineno=None,
                     ).toDict()
                 )
-                for n in sorted(self.notes[k], key=lambda x: x.modified, reverse=True):
+                for n in sorted(self.notes[k],
+                                key=lambda x: x.modified,
+                                reverse=True):
                     self.current_items.append(n.toDict())
         except KeyError:
             pass
