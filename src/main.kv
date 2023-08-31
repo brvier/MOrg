@@ -15,7 +15,7 @@
     on_filepath: w_textinput.lexer = TodotxtLexer() if noteView.filepath.endswith('todo.txt') else MarkdownLexer()
     canvas:
         Color:
-            rgba: app.bg_color
+            rgba: app.theme['background']
         Rectangle:
             pos: self.pos
             size: self.size
@@ -31,9 +31,9 @@
             font_size: sp(14)
             on_text: root.content = self.text
             multiline: True
-            background_color: app.editor_bgcolor
-            foreground_color: app.editor_textcolor
-            style: app.editor_pygments_style
+            background_color: app.theme['editor_background']
+            foreground_color: app.theme['editor_text']
+            style: app.theme['editor_pygments_style']
             unfocus_on_touch: False
             auto_indent: True
             replace_crlf: True
@@ -104,7 +104,7 @@
     size: dp(48), dp(48)
 
 <LabelButton@ButtonBehavior+Label>:
-    bg_color: app.header_bg_color
+    bg_color: app.theme['header_background']
     canvas.before:
         Color:
             rgba: self.bg_color if self.bg_color else (.9,.9,.9,1)
@@ -113,7 +113,7 @@
             size: self.size
 			radius: [(10, 10),(10, 10),(10, 10),(10, 10)]
     text:""
-    color: app.primary_color
+    color: app.theme['primary']
     size_hint:1,1
 
     disabled: True if self.text == "" else False
@@ -121,17 +121,17 @@
 <Day@ButtonBehavior+Label>:
     canvas.before:
         Color:
-            rgba: (0,0,0,0) if self.text != str(app.current_date.day) else app.selected_accent_bg_color
+            rgba: (0,0,0,0) if self.text != str(app.current_date.day) else app.theme['selected_accent_background']
         Ellipse:
             pos: (self.pos[0] + self.size[0]/2) - (self.size[1]/2), self.pos[1]
             size: self.size[1], self.size[1]
         Color:
-            rgba: (0,0,0,0) if (app.current_prefix+self.text) not in app.event_busy_days else app.event_color
+            rgba: (0,0,0,0) if (app.current_prefix+self.text) not in app.event_busy_days else app.theme['event']
         Rectangle:
             pos: self.pos[0]+self.size[0]/2-14, self.pos[1] + 2
             size: 28, 6
         Color:
-            rgba: (0,1,0,0) if (app.current_prefix+self.text) not in app.journal_busy_days else app.journal_color
+            rgba: (0,1,0,0) if (app.current_prefix+self.text) not in app.journal_busy_days else app.theme['journal']
         Rectangle:
             pos: self.pos[0]+self.size[0]/2-14, self.pos[1] + 12
             size: 28, 6
@@ -139,9 +139,9 @@
 
     text:""
     datepicker: root.parent.parent
-    color: app.primary_color
+    color: app.theme['primary']
     size_hint:1,1
-    background_color: app.bg_color
+    background_color: app.theme['background']
     disabled: True if self.text == "" else False
     on_release:
         app.current_date = app.current_date.replace(day=int(self.text))
@@ -156,9 +156,9 @@
 
     text:""
     datepicker: root.parent.parent
-    color: app.primary_color
+    color: app.theme['primary']
     size_hint:1,1
-    background_color: app.bg_color
+    background_color: app.theme['background']
 
 <Week@BoxLayout>:
     datepicker: root.parent
@@ -228,7 +228,7 @@
         text_size: self.size
         halign: 'left'
         valign: 'top'
-        color: app.listitem_subcolor
+        color: app.theme['listitem_sub']
 
 <NoteSelector@ModalView>:
     size_hint: 1, 0.75
@@ -381,7 +381,7 @@
     on_release: app.edit(root.index, root.itemtype!=4, root.selected)
     canvas:
         Color:
-            rgba: app.listitem_selected_bgcolor if root.itemtype==0 else app.listitem_bgcolor
+            rgba: app.theme['listitem_selected_background'] if root.itemtype==0 else app.theme['listitem_background']
         Rectangle:
             pos: self.pos
             size: self.size
@@ -395,7 +395,7 @@
             size: (dp(24), dp(24)) if root.itemtype!=0 else (0,0)
             text: "" if root.itemtype == 0 else ("\uf111" if root.itemtype == 1 else ("\uf133" if root.itemtype == 2 else ("\uf1ea" if root.itemtype==3 else "\uf249")))
             pos_hint: {'center_y': 0.5}
-            color: app.primary_color if root.itemtype == 0 else (app.todo_color if root.itemtype == 1 else (app.event_color if root.itemtype == 2 else (app.journal_color if root.itemtype == 3 else app.note_color)))
+            color: app.theme['primary'] if root.itemtype == 0 else (app.theme['todo'] if root.itemtype == 1 else (app.theme['event'] if root.itemtype == 2 else (app.theme['journal'] if root.itemtype == 3 else app.theme['note'])))
 
         Widget:
             size_hint: None, 1
@@ -407,7 +407,7 @@
             size_hint: 1, 1
             text_size: self.size
             shorten: True
-            color: app.listitem_selected_color if root.selected else app.listitem_color
+            color: app.theme['listitem_selected'] if root.selected else app.theme['listitem']
             font_size: sp(24) if root.itemtype == 0 else sp(14)
             valign: 'middle'
             halign: 'left'
@@ -415,7 +415,7 @@
 <Page>:
     canvas.before:
         Color:
-            rgba: app.bg_color
+            rgba: app.theme['background']
         Rectangle:
             pos: self.pos
             size: self.size
@@ -424,10 +424,10 @@
 <ToggleLabel>
     group: "type"
     size_hint: (1,None)
-    color: app.primary_color
+    color: app.theme['primary']
     canvas.before:
         Color:
-            rgba: app.selected_accent_bg_color if self.state == "down" else app.accent_bg_color
+            rgba: app.theme['selected_accent_background'] if self.state == "down" else app.theme['accent_background']
         RoundedRectangle:
             pos: self.pos
             size: self.size
@@ -439,7 +439,7 @@ ScreenManager:
     transition: NoTransition()
     canvas.before:
         Color:
-            rgba: app.bg_color
+            rgba: app.theme['background']
         Rectangle:
             pos: self.pos
             size: self.size
@@ -460,7 +460,7 @@ ScreenManager:
                 spacing:dp(10)
                 DatePicker:
                     id: test
-                    bg_color:app.header_bg_color
+                    bg_color:app.theme['header_background']
                     size_hint: 1, 0.5
 
                 MOrgRecycleView:
@@ -502,8 +502,8 @@ ScreenManager:
                 id: append_input
                 size_hint: 1,1
                 focus: False
-                background_color: app.editor_bgcolor
-                foreground_color: app.editor_textcolor
+                background_color: app.theme['editor_background']
+                foreground_color: app.theme['editor_text']
 
             BoxLayout:
                 size_hint: 1,None
@@ -513,12 +513,12 @@ ScreenManager:
 				padding: dp(20)
                 LabelButton:
                     text:'<<'
-					bg_color: app.accent_bg_color
+					bg_color: app.theme['accent_background']
                     on_release: app.picker_datetime += Timedelta(hours=-1)
                     opacity: 1 if append_event.state == "down" else 0
                 LabelButton:
                     text:'<'
-					bg_color: app.accent_bg_color
+					bg_color: app.theme['accent_background']
                     on_release: app.picker_datetime += Timedelta(minutes=-5)
                     opacity: 1 if append_event.state == "down" else 0
                 Label:
@@ -527,15 +527,15 @@ ScreenManager:
                     height: dp(100)
 					font_size: sp(24)
                     size_hint: (1,1)
-					color: app.primary_color
+					color: app.theme['primary']
 				LabelButton:
-					bg_color: app.accent_bg_color
+					bg_color: app.theme['accent_background']
                     text:'>'
                     on_release: app.picker_datetime += Timedelta(minutes=5)
                     opacity: 1 if append_event.state == "down" else 0
                 LabelButton:
                     text:'>>'
-					bg_color: app.accent_bg_color
+					bg_color: app.theme['accent_background']
                     on_release: app.picker_datetime += Timedelta(hours=1)
                     opacity: 1 if append_event.state == "down" else 0
             GridLayout:
@@ -577,7 +577,7 @@ ScreenManager:
 
 			LabelButton:
 				on_release: app.do_add()
-				bg_color: app.second_accent_bg_color
+				bg_color: app.theme['second_accent_background']
 				color: 1,1,1,1
 				text: '+'
 				height: '64dp'

@@ -19,35 +19,21 @@ import time
 from functools import partial
 from pathlib import Path
 
-import humanize
 import kivy
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.text import LabelBase
 from kivy.core.window import Window
 from kivy.lang import Builder
-from kivy.properties import ColorProperty  # DictProperty,
-from kivy.properties import (BooleanProperty, ListProperty, NumericProperty,
+from kivy.properties import (DictProperty,
+                             BooleanProperty,
+                             ListProperty, NumericProperty,
                              ObjectProperty, StringProperty)
-from kivy.uix.behaviors import (ButtonBehavior, FocusBehavior,
-                                ToggleButtonBehavior)
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.codeinput import CodeInput  # noqa
-from kivy.uix.label import Label
-from kivy.uix.recycleboxlayout import RecycleBoxLayout
-from kivy.uix.recycleview import RecycleView
-from kivy.uix.recycleview.layout import LayoutSelectionBehavior
-from kivy.uix.recycleview.views import RecycleDataViewBehavior
-from kivy.uix.screenmanager import Screen
-from kivy.uix.textinput import TextInput
 from kivy.utils import platform
-from kivy.vector import Vector
-from pygments.lexers.textfmts import TodotxtLexer
-
 from styles import GithubStyle, GruvboxDarkStyle
-
-if platform == "android":
-    import android
+from models import Item, Note, Journal, Event, Todo
+from ux import get_android_vkeyboard_height
+from kivy.factory import Factory
 
 import pytodotxt
 
@@ -61,8 +47,6 @@ EVENT_RE = re.compile(
 )
 TIME_FMT = "%H:%M"
 DATE_FMT = "%Y-%m-%d"
-URL_RE = re.compile(r"\b((https?|ftp|file)://\S+)")
-BLANK_RE = re.compile(r"\s")
 
 
 def rgba(r, g, b, a):
@@ -84,604 +68,39 @@ logging.basicConfig(filename='%s/debug.log' % orgpath(), level=logging.DEBUG,
 logger = logging.getLogger(__name__)
 
 
-def get_android_vkeyboard_height():
-    print("get_android_vkeyboard_height")
-    global vkeyboard_offset
-    if platform == "android":
-        # for a unknow reason keyboard height can be negative when closed... and
-        # an offset persists when open : dirty work arround
-        h = android.get_keyboard_height()
-        print(h, vkeyboard_offset)
-        if not vkeyboard_offset:
-            if h < 0:
-                vkeyboard_offset = -h
-                h = 0
-        return h + vkeyboard_offset
-    else:
-        return Window.keyboard_height
-
-
-class Item:
-    description = None
-    path = None
-    itemtype = 0
-    lineno = 0
-
-    def __init__(self, description, path, lineno):
-        self.description = description
-        self.path = path
-        self.itemtype = 0
-        self.lineno = lineno
-
-    def toDict(self):
-        return {
-            "description": self.description,
-            "itemtype": 0,
-        }
-
-
-class Todo(Item):
-    priority = None
-
-    def __init__(self, description, path="todo.txt", lineno=0, priority=None):
-        super(Todo, self).__init__(description, path, lineno)
-        self.priority = priority
-
-    def toDict(self):
-        return {
-            "description": self.description,
-            "priority": self.priority,
-            "path": self.path,
-            "lineno": self.lineno,
-            "itemtype": 1,
-        }
-
-
-class CircularButton(
-    ButtonBehavior,
-    Label,
-):
-    def collide_point(self, x, y):
-        return Vector(x, y).distance(self.center) <= self.width / 2
-
-
-class Event(Item):
-    when = None
-    end = None
-
-    def __init__(self, description, when, path="agenda.txt", lineno=0, end=None):
-        super(Event, self).__init__(description, path, lineno)
-        self.when = when
-        self.end = end
-
-    def toDict(self):
-
-        return {
-            "description": self.description,
-            "when": self.when.strftime("%Y-%m-%d %H:%M"),
-            "time": self.when.strftime("%H:%M"),
-            "end": self.end.strftime("%Y-%m-%d %H:%M") if self.end else "",
-            "path": self.path,
-            "lineno": self.lineno,
-            "itemtype": 2,
-        }
-
-
-class Journal(Item):
-    when = None
-
-    def __init__(self, description, path, when, lineno=0):
-        super(Journal, self).__init__(description, path, lineno)
-        self.when = when
-        self.description = description.strip("\n ")
-
-    def toDict(self):
-        return {
-            "description": self.description,
-            "when": self.when.strftime("%Y-%m-%d %H:%M"),
-            "path": self.path,
-            "lineno": self.lineno,
-            "itemtype": 3,
-        }
-
-
-class Expense(Item):
-    when = None
-
-    def __init__(self, description, when, path="expense.txt", lineno=0):
-        super(Expense, self).__init__(description, path, lineno)
-        self.when = when
-
-
-class Note(Item):
-    category = None
-    modified = None
-
-    def __init__(self, description, path):
-        super(Note, self).__init__(description, path, lineno=None)
-        self.modified = os.path.getmtime(path)
-        self.category = os.path.dirname(path)
-
-    def toDict(self):
-        return {
-            "description": self.description,
-            "modified": humanize.naturaltime(
-                datetime.datetime.fromtimestamp(self.modified)
-            ),
-            "category": self.category,
-
-            "path": self.path,
-            "lineno": 0,
-            "itemtype": 4,
-        }
-
-
-class Daily(Item):
-    when = None
-
-    def __init__(self, path, when, lineno=0):
-        super(Daily, self).__init__("", path, lineno)
-        self.when = when
-        self.description = open(self.path, 'r').read()
-
-    def toDict(self):
-        return {
-            "description": self.description,
-            "when": self.when.strftime("%Y-%m-%d %H:%M"),
-            "path": self.path,
-            "lineno": 0,
-            "itemtype": 3,
-        }
-
-    def toDicts(self):
-        return [{
-            "description": line,
-            "when": self.when.strftime("%Y-%m-%d %H:%M"),
-            "path": self.path,
-            "lineno": idx,
-            "itemtype": 3,
-        } for idx, line in enumerate(self.description.split('\n')) if line != ""]
-
-
-class DatePicker(BoxLayout):
-    pass
-
-
-class SelectableRecycleBoxLayout(
-    FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout
-):
-    """Adds selection and focus behaviour to the view."""
-
-
-class SelectableNote(RecycleDataViewBehavior, ButtonBehavior, BoxLayout):
-    """Add selection support to the Label"""
-
-    index = None
-    selected = BooleanProperty(False)
-    selectable = BooleanProperty(True)
-    smalltext = StringProperty("")
-    text = StringProperty("")
-    lineno = NumericProperty(0)
-
-    # txt_input1 = ObjectProperty(None)
-    # txt_input = ObjectProperty(None)
-
-    def refresh_view_attrs(self, rv, index, data):
-        """Catch and handle the view changes"""
-        self.index = index
-        return super(SelectableNote, self).refresh_view_attrs(rv, index, data)
-
-    def on_touch_down(self, touch):
-        """Add selection on touch down"""
-        if super(SelectableNote, self).on_touch_down(touch):
-            return True
-        if self.collide_point(*touch.pos) and self.selectable:
-            return self.parent.select_with_touch(self.index, touch)
-
-    def apply_selection(self, rv, index, is_selected):
-        """Respond to the selection of items in the view."""
-
-        self.selected = is_selected
-        if is_selected:
-            rv.data[index].get("text")
-
-
-class SelectableLabel(RecycleDataViewBehavior, ButtonBehavior, Label):
-    """Add selection support to the Label"""
-
-    index = None
-    selected = BooleanProperty(False)
-    selectable = BooleanProperty(True)
-    # txt_input1 = ObjectProperty(None)
-    # txt_input = ObjectProperty(None)
-
-    def refresh_view_attrs(self, rv, index, data):
-        """Catch and handle the view changes"""
-        self.index = index
-        return super(SelectableLabel, self).refresh_view_attrs(rv, index, data)
-
-    def on_touch_down(self, touch):
-        """Add selection on touch down"""
-        if super(SelectableLabel, self).on_touch_down(touch):
-            return True
-        if self.collide_point(*touch.pos) and self.selectable:
-            return self.parent.select_with_touch(self.index, touch)
-
-    def apply_selection(self, rv, index, is_selected):
-        """Respond to the selection of items in the view."""
-
-        self.selected = is_selected
-        if is_selected:
-            rv.data[index].get("text")
-
-
-class ToggleLabel(ToggleButtonBehavior, Label):
-    active = BooleanProperty(False)
-
-    def __init__(self, **kwargs):
-        super(ToggleLabel, self).__init__(**kwargs)
-
-        self.allow_no_selection = False
-        self.group = "default"
-
-
-class MOrgRecycleView(RecycleView):
-    def __init__(self, **kwargs):
-        super(MOrgRecycleView, self).__init__(**kwargs)
-
-
-class RV(RecycleView):
-    def __init__(self, **kwargs):
-        super(RV, self).__init__(**kwargs)
-
-
-class MOrgListItem(RecycleDataViewBehavior, ButtonBehavior, BoxLayout):
-
-    index = None
-    selected = BooleanProperty(False)
-    selectable = BooleanProperty(True)
-    line = StringProperty()
-    description = StringProperty()
-    when = StringProperty(rebind=True)
-    end = StringProperty(rebind=True)
-    priority = StringProperty(None)
-    path = StringProperty()
-    sortkey = None
-    # 0 header, 1 todo, 2 event, 3 journal, 4 note
-    itemtype = NumericProperty(0)
-    filename = StringProperty()
-    modified = StringProperty()
-
-    def __init__(self, **kwargs):
-        super(MOrgListItem, self).__init__(**kwargs)
-
-    def refresh_view_attrs(self, rv, index, data):
-        """Catch and handle the view changes"""
-        self.index = index
-        return super(MOrgListItem, self).refresh_view_attrs(rv, index, data)
-
-    def on_touch_down(self, touch):
-        """Add selection on touch down"""
-        if super(MOrgListItem, self).on_touch_down(touch):
-            return True
-        if self.collide_point(*touch.pos) and self.selectable:
-            return self.parent.select_with_touch(self.index, touch)
-
-    def apply_selection(self, rv, index, is_selected):
-        """Respond to the selection of items in the view."""
-        self.selected = is_selected
-        if is_selected:
-            self.parent.clear_selection()
-
-
-class MTextInput(TextInput):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # User can change keyboard size during input
-        # so we should regularly update the keyboard height
-        self.trigger_keyboard_height = Clock.create_trigger(
-            self.update_keyboard_height, 0.2, interval=True
-        )
-        self.trigger_cancel_keyboard_height = Clock.create_trigger(
-            lambda dt: self.trigger_keyboard_height.cancel(), 1.0, interval=False
-        )
-
-    def update_keyboard_height(self, dt):
-        if platform == "android":
-            App.get_running_app().keyboard_height = get_android_vkeyboard_height()
-
-    def _bind_keyboard(self):
-        super()._bind_keyboard()
-        if platform == "android":
-            self.trigger_cancel_keyboard_height.cancel()
-            self.trigger_keyboard_height()
-
-    def _unbind_keyboard(self):
-        super()._unbind_keyboard()
-        if platform == "android":
-            self.trigger_cancel_keyboard_height()
-
-
-class Page(Screen):
-    pass
-
-
-class NoteView(Page):
-
-    title = StringProperty()
-    content = StringProperty()
-    last_modification = StringProperty()
-    mtime = NumericProperty()
-    filepath = StringProperty()
-
-
-class MDInput(CodeInput):
-
-    re_indent_todo = re.compile(r"^\s*(-\s\[\s\]\s)")
-    re_indent_done = re.compile(r"^\s*(-\s\[x\]\s)")
-    re_indent_list = re.compile(r"^\s*(-\s)")
-
-    def __init__(self, **kwarg):
-        CodeInput.__init__(self, lexer=TodotxtLexer(), style_name="default")
-        # User can change keyboard size during input,
-        # so we should regularly update the keyboard height
-        self.trigger_keyboard_height = Clock.create_trigger(
-            self.update_keyboard_height, 0.2, interval=True
-        )
-        self.trigger_cancel_keyboard_height = Clock.create_trigger(
-            lambda dt: self.trigger_keyboard_height.cancel(), 1.0, interval=False
-        )
-
-    def update_keyboard_height(self, dt):
-        if platform == "android":
-            App.get_running_app().keyboard_height = get_android_vkeyboard_height()
-
-    def _bind_keyboard(self):
-        super()._bind_keyboard()
-        if platform == "android":
-            self.trigger_cancel_keyboard_height.cancel()
-            self.trigger_keyboard_height()
-
-    def _unbind_keyboard(self):
-        super()._unbind_keyboard()
-        if platform == "android":
-            self.trigger_cancel_keyboard_height()
-
-    def set_cursor(self, idx):
-        self.cursor = self.get_cursor_from_index(idx)
-        self.focus = True
-
-    def on_double_tap(self):
-        index = self.cursor_index()
-        _text = self.text
-        if index > 0:
-            search_start = 0
-            mtch = None
-            line_start = _text.rfind("\n", 0, index)
-
-            for mtch in BLANK_RE.finditer(_text[line_start:index]):
-                pass
-            if mtch:
-                search_start = line_start + 1 + mtch.start()
-
-            try:
-                search_end = BLANK_RE.search(_text, index).start()
-            except AttributeError:
-                search_end = len(_text)
-
-            print(_text[search_start:search_end])
-            selected_text = _text[search_start:search_end]
-            g_url = URL_RE.search(_text, search_start, search_end)
-
-            if g_url:
-                print("Found url: ", g_url.groups()[0])
-                import webbrowser
-
-                webbrowser.open(g_url.groups()[0])
-                return
-            if selected_text.startswith("[[") and selected_text.endswith("]]"):
-                print("Found internal link: ", selected_text[2:-2])
-
-                app = App.get_running_app()
-                # FIXME
-                for idx, items in enumerate(app.current_items):
-                    print(items)
-                    if items["itemtype"] != 4:
-                        continue
-                    if items["description"] == selected_text[2:-2]:
-                        Clock.schedule_once(partial(app.edit, idx, True), 0.2)
-                        return
-
-                return
-
-        super().on_double_tap()
-
-    def do_indent(self, *kwargs):
-        index = self.cursor_index()
-        if index > 0:
-            _text = self.text
-            line_start = _text.rfind("\n", 0, index)
-            self.text = _text[: line_start + 1] + "  " + _text[line_start + 1:]
-            if index > line_start:
-                index += 2
-
-        self.set_cursor(index)
-
-    def do_unindent(self, *kwargs):
-        index = self.cursor_index()
-        _text = self.text
-        line_start = _text.rfind("\n", 0, index)
-        line_end = _text.find("\n", index)
-        if line_end == -1:
-            line_end = len(_text)
-        if (_text[line_start + 1: line_start + 3]) == "  ":
-            self.text = _text[: line_start + 1] + _text[line_start + 3:]
-            if index > line_start:
-                index -= 2
-        self.set_cursor(index)
-
-    def do_heading(self):
-        index = self.cursor_index()
-
-        if index >= 0:
-            _text = self.text
-            line_start = _text.rfind("\n", 0, index)
-            line_end = _text.find("\n", index)
-            if line_end == -1:
-                line_end = len(_text)
-            if line_start < 0:
-                line_start = -1
-
-            idx = _text.find("# ", line_start + 1, line_end)
-            if idx == line_start + 1:
-                self.text = "{}{}{}".format(
-                    self.text[:idx],
-                    "## ",
-                    self.text[idx + 2:],
-                )
-                self.set_cursor(index + (len(self.text) - len(_text)))
-                return
-
-            idx = _text.find("## ", line_start + 1, line_end)
-            if idx == line_start + 1:
-                self.text = "{}{}{}".format(
-                    self.text[:idx],
-                    "### ",
-                    self.text[idx + 3:],
-                )
-                self.set_cursor(index + (len(self.text) - len(_text)))
-                return
-
-            idx = _text.find("### ", line_start + 1, line_end)
-            if idx == line_start + 1:
-                self.text = "{}{}".format(
-                    self.text[:idx],
-                    self.text[idx + 4:],
-                )
-                self.set_cursor(index + (len(self.text) - len(_text)))
-                return
-            self.text = "{}{}{}".format(
-                self.text[: line_start + 1],
-                "# ",
-                self.text[line_start + 1:],
-            )
-            self.set_cursor(index + (len(self.text) - len(_text)))
-            return
-
-    def do_todo(self):
-        index = self.cursor_index()
-
-        if index >= 0:
-            _text = self.text
-            line_start = _text.rfind("\n", 0, index)
-            line_end = _text.find("\n", index)
-            if line_end == -1:
-                line_end = len(_text)
-            if line_start < 0:
-                line_start = -1
-
-            print(type(self.lexer))
-
-            if type(self.lexer) == TodotxtLexer:
-                if _text[line_start + 1: line_start + 3] == "x ":
-                    self.text = "{}{}{}".format(
-                        self.text[: line_start + 1],
-                        "",
-                        self.text[line_start + 3:],
-                    )
-                else:
-                    self.text = "{}{}{}".format(
-                        self.text[: line_start + 1],
-                        "x ",
-                        self.text[line_start + 1:],
-                    )
-
-                self.set_cursor(index + (len(self.text) - len(_text)))
-
-                return
-
-            idx = _text.find("- [ ]", line_start + 1, line_end)
-            if idx >= 0:
-                self.text = "{}{}{}".format(
-                    self.text[: idx + 3],
-                    "x",
-                    self.text[idx + 4:],
-                )
-            else:
-                idx = _text.find("- [x]", line_start + 1, line_end)
-                if idx >= 0:
-                    self.text = "{}{}{}".format(
-                        self.text[:idx],
-                        "- ",
-                        self.text[idx + 6:],
-                    )
-                else:
-                    idx = _text.find("- ", line_start + 1, line_end)
-                    if idx >= 0:
-                        self.text = "{}{}{}".format(
-                            self.text[:idx],
-                            "- [ ] ",
-                            self.text[idx + 2:],
-                        )
-                    else:
-                        self.text = "{}{}{}".format(
-                            self.text[: line_start + 1],
-                            "- ",
-                            self.text[line_start + 1:],
-                        )
-            self.set_cursor(index + (len(self.text) - len(_text)))
-
-    def insert_text(self, substring, from_undo=False):
-        if not from_undo and self.multiline and self.auto_indent and substring == "\n":
-            substring = self._auto_indent(substring)
-        CodeInput.insert_text(self, substring, from_undo)
-
-    def _auto_indent(self, substring):
-        index = self.cursor_index()
-
-        if index > 0:
-            _text = self.text
-            line_start = _text.rfind("\n", 0, index)
-            if line_start > -1:
-                line = _text[line_start + 1: index]  # noqa:E203
-                indent = self.re_indent_todo.match(line)
-
-                if indent is None:
-                    indent = self.re_indent_done.match(line)
-                if indent is None:
-                    indent = self.re_indent_list.match(line)
-                if indent is not None:
-                    substring += indent.group().replace("x", " ")
-        return substring
-
-
 class MOrgApp(App):
-    bg_color = ColorProperty([1, 1, 1, 1])
-    header_bg_color = ColorProperty([0.9, 0.9, 0.9, 1])
-    primary_color = ColorProperty([0, 0, 0, 1])
-    accent_color = ColorProperty([1, 0, 0, 1])
-    accent_bg_color = ColorProperty([0.8, 0.8, 0.8, 1])
-    second_accent_color = ColorProperty([1, 0.2, 1, 1])
-    selected_accent_bg_color = ColorProperty([1, 1, 1, 1])
-    todo_color = ColorProperty([0, 0, 0, 1])
-    event_color = ColorProperty([0, 0, 0, 1])
-    journal_color = ColorProperty([0, 0, 0, 1])
-    note_color = ColorProperty([0, 0, 0, 1])
-    listitem_selected_bgcolor = ColorProperty([1, 1, 1, 1])
-    listitem_bgcolor = ColorProperty([1, 1, 1, 1])
-    listitem_icon_color = ColorProperty([0, 0, 0, 1])
-    listitem_selected_icon_color = ColorProperty([0, 0, 0, 1])
-    listitem_color = ColorProperty([0, 0, 0, 1])
-    listitem_selected_color = ColorProperty([0, 0, 0, 1])
-    listitem_subcolor = ColorProperty([0, 0, 0, 1])
-    listitem_selected_subcolor = ColorProperty([0, 0, 0, 1])
-    editor_bgcolor = ColorProperty([1, 1, 1, 1])
-    editor_textcolor = ColorProperty([0, 0, 0, 1])
-    editor_pygments_style = GithubStyle
+    theme = DictProperty({
+        'background': (1, 1, 1, 1),
+        'header_background': (.9, .9, .9, 1),
+        'primary': (0, 0, 0, 1),
+        'accent': (1, 0, 0, 1),
+        'accent_background': (.8, .8, .8, 1),
+        'second_accent': (1, .2, 1, 1),
+        'selected_accent_background': (1, 1, 1, 1),
+        'todo': (0, 0, 0, 1),
+        'event': (0, 0, 0, 1),
+        'journal': (0, 0, 0, 1),
+        'event': (0, 0, 0, 1),
+        'journal': (0, 0, 0, 1),
+        'note': (0, 0, 0, 1),
+        'listitem_selected_background': (1, 1, 1, 1),
+        'listitem_background': (1, 1, 1, 1),
+        'listitem_icon': (0, 0, 0, 1),
+        'listitem_selected_icon': (0, 0, 0, 1),
+        'listitem': (0, 0, 0, 1),
+        'listitem_selected': (0, 0, 0, 1),
+        'listitem_sub': (0, 0, 0, 1),
+        'listitem_selected_sub': (0, 0, 0, 1),
+        'editor_background': (1, 1, 1, 1),
+        'editor_text': (0, 0, 0, 1),
+        'editor_pygments_style': GithubStyle,
+    })
+
     current_date = ObjectProperty(datetime.datetime.now().date(), rebind=True)
     current_items = ListProperty([])
     current_prefix = StringProperty()
     keyboard_height = NumericProperty(0)
+
     picker_datetime = ObjectProperty(datetime.datetime.now())
     notes_cache = ListProperty([])
     filtered_notes = ListProperty([])
@@ -711,6 +130,10 @@ class MOrgApp(App):
                 self.root.current = "main"
                 self.load()
                 return True
+        elif modifier == ['ctrl'] and codepoint == 'k':
+            print('on_keyboard', window, key, scancode, codepoint, modifier)
+            Factory.NoteSearch().open()
+
         return False
 
     def build(self):
@@ -746,13 +169,14 @@ class MOrgApp(App):
                     ]
                 )
                 # app_folder = os.path.dirname(os.path.abspath(__file__))
-                Clock.schedule_once(self.load, 0.1)
+                Clock.schedule_once(self.load, 0)
 
             except Exception as err:
                 print(err)
 
         else:
-            Clock.schedule_once(self.load, 0.2)
+            Clock.schedule_once(self.load, 0)
+
         # Horrible workarround on android where sometime py intepreter return FileNotFoundError
         # reason or maybe permission not yet ack
         # while True:
@@ -1072,8 +496,7 @@ class MOrgApp(App):
                     orgpath(),
                     "notes",
                     re.sub(r"[^0-9a-zA-Z]+", "_",
-                           self.root.ids.append_input.text)
-                    + ".md",
+                           self.root.ids.append_input.text) + ".md",
                 )
                 Path(pth).touch()
                 self.current_items.append(
@@ -1107,7 +530,8 @@ class MOrgApp(App):
             self.filtered_notes = [{"text": x, "smalltext": "In title"}
                                    for x in self.notes_cache if text in x.lower()]
             try:
-                self.filtered_notes += [{"text": x[0], "smalltext": "(Line {}) : {}".format(x[2], x[3]),
+                self.filtered_notes += [{"text": x[0],
+                                         "smalltext": "(Line {}) : {}".format(x[2], x[3]),
                                          "lineno": x[2], "idx": x[1]}
                                         for x in self.search_text(text)]
             except Exception:
@@ -1215,66 +639,64 @@ class MOrgApp(App):
     def set_darkmode(self, value):
         # THEME
         if value is True:
-            self.bg_color = rgba(40, 40, 40, 1)
-            self.header_bg_color = [0.1, 0.1, 0.1, 1]
-            self.primary_color = [1, 1, 1, 1]
-            self.accent_color = [1, 0, 0, 1]
-            self.accent_bg_color = [0.2, 0.2, 0.2, 1]
-            self.second_accent_color = [1, 0.2, 1, 1]
-            self.second_accent_bg_color = [28 / 255, 146 / 255, 236 / 255, 1]
-            self.todo_color = rgba(214, 93, 14, 1)
-            self.journal_color = rgba(104, 157, 106, 1)
-            self.event_color = rgba(215, 153, 33, 1)
-            self.note_color = rgba(124, 111, 100, 1)
-            self.selected_accent_bg_color = [1, 1, 1, 0.2]
-            self.listitem_selected_bgcolor = [0, 0, 0, 0]
-            self.listitem_bgcolor = [0, 0, 0, 0]
-            self.listitem_icon_color = [1, 1, 1, 1]
-            self.listitem_selected_icon_color = [1, 1, 1, 1]
-            self.listitem_color = [1, 1, 1, 1]
-            self.listitem_selected_color = [1, 1, 1, 1]
-            self.listitem_subcolor = [0.9, 0.9, 0.9, 1]
-            self.listitem_selected_subcolor = [1, 1, 1, 1]
-            self.editor_bgcolor = [0.1, 0.1, 0.1, 1]
-            self.editor_textcolor = [1, 1, 1, 1]
-            self.editor_pygments_style = GruvboxDarkStyle
+            self.theme = {
+                'background': rgba(40, 40, 40, 1),
+                'header_background': (0.1, 0.1, 0.1, 1),
+                'primary': (1, 1, 1, 1),
+                'accent': (1, 0, 0, 1),
+                'accent_background': (0.2, 0.2, 0.2, 1),
+                'second_accent': (1, 0.2, 1, 1),
+                'second_accent_background': rgba(28, 146, 236, 1),
+                'todo': rgba(214, 93, 14, 1),
+                'journal': rgba(104, 157, 106, 1),
+                'event': rgba(215, 153, 33, 1),
+                'note': rgba(124, 111, 100, 1),
+                'selected_accent_background': (1, 1, 1, 0.2),
+                'listitem_selected_background': (0, 0, 0, 0),
+                'listitem_background': (0, 0, 0, 0),
+                'listitem_icon': (1, 1, 1, 1),
+                'listitem_selected_icon': (1, 1, 1, 1),
+                'listitem': (1, 1, 1, 1),
+                'listitem_selected': (1, 1, 1, 1),
+                'listitem_sub': (.9, 0.9, 0.9, 1),
+                'listitem_selected_sub': (1, 1, 1, 1),
+                'editor_background': (0.1, 0.1, 0.1, 1),
+                'editor_text': (1, 1, 1, 1),
+                'editor_pygments_style': GruvboxDarkStyle
+            }
         else:
-            self.bg_color = rgba(255, 255, 255, 1)  # [1, 1, 1, 1]
-            self.header_bg_color = rgba(245, 245, 245, 1)
-            self.primary_color = [0, 0, 0, 1]
-            self.accent_color = rgba(214, 93, 14, 1)
-            self.accent_bg_color = [0.8, 0.8, 0.8, 1]
-            self.second_accent_color = rgba(214, 153, 33, 1)
-            self.second_accent_bg_color = [28 / 255, 146 / 255, 236 / 255, 1]
-            self.todo_color = rgba(214, 93, 14, 1)
-            self.journal_color = rgba(104, 157, 106, 1)
-            self.event_color = rgba(215, 153, 33, 1)
-            self.note_color = rgba(124, 111, 100, 1)
-            self.selected_accent_bg_color = rgba(69, 133, 136, 1)
-            self.listitem_selected_bgcolor = [1, 1, 1, 1]
-            self.listitem_bgcolor = [1, 1, 1, 1]
-            self.listitem_icon_color = [206 / 255, 155 / 255, 113 / 255, 1]
-            self.listitem_selected_icon_color = [
-                206 / 255, 155 / 255, 113 / 255, 1]
-            self.listitem_color = [0, 0, 0, 1]
-            self.listitem_selected_color = [0, 0, 0, 1]
-            self.listitem_subcolor = [0.1, 0.1, 0.1, 1]
-            self.listitem_selected_subcolor = [0.1, 0.1, 0.1, 1]
-            self.editor_bgcolor = [1, 1, 1, 1]
-            self.editor_textcolor = [0, 0, 0, 1]
-            self.editor_pygments_style = GithubStyle
+            self.theme = {
+                'background': rgba(255, 255, 255, 1),
+                'header_background': rgba(245, 245, 245, 1),
+                'primary': (0, 0, 0, 1),
+                'accent': rgba(214, 93, 14, 1),
+                'accent_background': (0.8, 0.8, 0.8, 1),
+                'second_accent': rgba(214, 154, 33, 1),
+                'second_accent_background': rgba(28, 146, 236, 1),
+                'todo': rgba(214, 93, 14, 1),
+                'journal': rgba(104, 157, 106, 1),
+                'event': rgba(215, 153, 33, 1),
+                'note': rgba(124, 111, 100, 1),
+                'selected_accent_background': rgba(69, 133, 136, 0.2),
+                'listitem_selected_background': (1, 1, 1, 1),
+                'listitem_background': (1, 1, 1, 1),
+                'listitem_icon': rgba(206, 155, 113, 1),
+                'listitem_selected_icon': rgba(206, 155, 1113, 1),
+                'listitem': (0, 0, 0, 1),
+                'listitem_selected': (.1, .1, .1, 1),
+                'listitem_sub': (.1, 0.1, 0.1, 1),
+                'listitem_selected_sub': (1, 1, 1, 1),
+                'editor_background': (1, 1, 1, 1),
+                'editor_text': (0, 0, 0, 1),
+                'editor_pygments_style': GithubStyle
+            }
 
     def touch(self, filename):
         p = os.path.join(orgpath(), filename)
         if not os.path.exists(p):
             open(p, "a").close()
 
-    def on_current_date(self, s, d, **kw):
-        self.current_prefix = self.current_date.strftime("%Y%m")
-        self.root.ids.scrollview.scroll_y = 1
-        # filter current items from main item
-        self.current_items.clear()
-
+    def _load_current_org_items(self, d):
         try:
             for e in self.events[d]:
                 self.current_items.append(e.toDict())
@@ -1311,14 +733,12 @@ class MOrgApp(App):
         )
 
         self.touch("expense.txt")
-        self.touch("quicknote.txt")
 
         for name in [
             "agenda.txt",
             "todo.txt",
             "done.txt",
             "expense.txt",
-            "quicknote.txt",
         ]:
 
             self.current_items.append(
@@ -1328,6 +748,7 @@ class MOrgApp(App):
                 ).toDict()
             )
 
+    def _load_current_notes_items(self):
         try:
             for k in sorted(self.notes.keys()):
 
@@ -1344,6 +765,20 @@ class MOrgApp(App):
                     self.current_items.append(n.toDict())
         except KeyError:
             pass
+
+    def on_current_date(self, s, d, **kw):
+        self.current_prefix = self.current_date.strftime("%Y%m")
+        self.root.ids.scrollview.scroll_y = 1
+        self.current_items.clear()
+
+        self._load_current_org_items(d)
+        self._load_current_notes_items()
+
+    def on_start(self):
+        pass
+
+    def on_stop(self):
+        pass
 
 
 if __name__ == "__main__":
