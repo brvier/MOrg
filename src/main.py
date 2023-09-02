@@ -453,9 +453,10 @@ class MOrgApp(App):
                     )
                 ) as fh:
                     fh.write(
-                        "%s %s\n"
+                        "%s %.2f %s\n"
                         % (
                             datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            self.picker_expense,
                             self.root.ids.append_input.text,
                         )
                     )

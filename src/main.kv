@@ -526,15 +526,8 @@ ScreenManager:
                     opacity: 1 if append_event.state == "down" else 0
                     height: dp(100)
 					font_size: sp(24)
-                    size_hint: (1,1)
-					color: app.theme['primary']
-	            Label:
-                    text: "{:.2f}".format(app.picker_expense)
-                    opacity: 1 if append_expense.state == "down" else 0
-                    height: dp(100)
-					font_size: sp(24)
-                    size_hint: (1,1)
-					color: app.theme['primary']
+                    size_hint: 1,1
+    				color: app.theme['primary']
 				LabelButton:
 					bg_color: app.theme['accent_background']
                     text:'>'
@@ -545,6 +538,43 @@ ScreenManager:
 					bg_color: app.theme['accent_background']
                     on_release: app.picker_datetime += Timedelta(hours=1)
                     opacity: 1 if append_event.state == "down" else 0
+
+
+            BoxLayout:
+                size_hint: 1,None
+                height: dp(100) if append_expense.state=="down" else dp(0)
+                orientation: 'horizontal'
+				spacing: dp(10)
+				padding: dp(20)
+                LabelButton:
+                    text:'<<'
+					bg_color: app.theme['accent_background']
+                    on_release: app.picker_expense -= 10
+                    opacity: 1 if append_expense.state == "down" else 0
+                LabelButton:
+                    text:'<'
+					bg_color: app.theme['accent_background']
+                    on_release: app.picker_expense -= 1
+                    opacity: 1 if append_expense.state == "down" else 0
+	            Label:
+                    text: "{:.2f}".format(app.picker_expense)
+                    opacity: 1 if append_expense.state == "down" else 0
+                    height: dp(100)
+					font_size: sp(24)
+                    size_hint: 1,1
+                    color: app.theme['primary']
+				LabelButton:
+					bg_color: app.theme['accent_background']
+                    text:'>'
+                    on_release: app.picker_expense += 1
+                    opacity: 1 if append_expense.state == "down" else 0
+                LabelButton:
+                    text:'>>'
+					bg_color: app.theme['accent_background']
+                    on_release: app.picker_expense += 10
+                    opacity: 1 if append_expense.state == "down" else 0
+
+
             GridLayout:
                 cols: 2
                 size_hint: 1,None
