@@ -39,8 +39,6 @@ import pytodotxt
 
 kivy.require("2.0.0")
 Window.softinput_mode = ""
-vkeyboard_offset = 0
-
 EVENT_RE = re.compile(
     r"^([\d]{4}-[\d]{2}-[\d]{2})\s([\d]{2}:[\d]{2})?\s?([\d]{2}:[\d]{2})?\s?(.*)$",
     re.ASCII,
@@ -102,6 +100,7 @@ class MOrgApp(App):
     keyboard_height = NumericProperty(0)
 
     picker_datetime = ObjectProperty(datetime.datetime.now())
+    picker_expense = NumericProperty()
     notes_cache = ListProperty([])
     filtered_notes = ListProperty([])
 
@@ -118,15 +117,10 @@ class MOrgApp(App):
     notes = {}
 
     def key_input(self, window, key, scancode, codepoint, modifier):
-        # key == 27 means it is waiting for
-        # back button tobe pressed
         if key == 27:
-            # checking if we are at mainscreen or not
             if self.root.current == "main":
-                # return True means do nothing
                 return False
             else:
-                # self.root.transition.direction = "right"
                 self.root.current = "main"
                 self.load()
                 return True
@@ -168,7 +162,6 @@ class MOrgApp(App):
                         Permission.WRITE_EXTERNAL_STORAGE,
                     ]
                 )
-                # app_folder = os.path.dirname(os.path.abspath(__file__))
                 Clock.schedule_once(self.load, 0)
 
             except Exception as err:
@@ -177,21 +170,7 @@ class MOrgApp(App):
         else:
             Clock.schedule_once(self.load, 0)
 
-        # Horrible workarround on android where sometime py intepreter return FileNotFoundError
-        # reason or maybe permission not yet ack
-        # while True:
-        #    try:
-        #        self.load()
-        #        break
-        #    except FileNotFoundError as err:
-        #        print("INIT LATER {}".format(err))
-        #        time.sleep(0.1)
-        #        raise err
-        #        continue
-
     def __go_to_line__(self, lineno, dts=None):
-        # col, row = self.noteView.ids.w_textinput.get_cursor_from_index(idx)
-        # print("__go_to_line__", idx, col, row)
         print(lineno)
         if lineno is None:
             return

@@ -528,6 +528,13 @@ ScreenManager:
 					font_size: sp(24)
                     size_hint: (1,1)
 					color: app.theme['primary']
+	            Label:
+                    text: "{:.2f}".format(app.picker_expense)
+                    opacity: 1 if append_expense.state == "down" else 0
+                    height: dp(100)
+					font_size: sp(24)
+                    size_hint: (1,1)
+					color: app.theme['primary']
 				LabelButton:
 					bg_color: app.theme['accent_background']
                     text:'>'
