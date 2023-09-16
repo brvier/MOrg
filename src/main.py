@@ -34,6 +34,7 @@ from styles import GithubStyle, GruvboxDarkStyle
 from models import Item, Note, Journal, Event, Todo
 from ux import get_android_vkeyboard_height
 from kivy.factory import Factory
+from share_listener import ShareListener
 
 import pytodotxt
 
@@ -94,6 +95,7 @@ class MOrgApp(App):
         'editor_pygments_style': GithubStyle,
     })
 
+    shared_text = None
     current_date = ObjectProperty(datetime.datetime.now().date(), rebind=True)
     current_items = ListProperty([])
     current_prefix = StringProperty()
@@ -129,6 +131,10 @@ class MOrgApp(App):
             Factory.NoteSearch().open()
 
         return False
+
+    def shareintent_text(self, text, MIMEtype):
+        self.shared_text = text
+        Clock.schedule_once(self.add, 0.1)
 
     def build(self):
         if platform == "android":
@@ -400,17 +406,21 @@ class MOrgApp(App):
         self.current_date = datetime.datetime.now().date()
         self.on_current_date(self, self.current_date)
 
-    def add(self, **args):
-        print(args)
+    def add(self, *kwargs):
         self.picker_datetime = datetime.datetime.combine(
             self.current_date, datetime.time(12, 0, 0)
         )
         self.root.transition.direction = "left"
         self.root.current = "append"
-        self.root.ids.append_input.text = ""
+        if self.shared_text:
+            self.root.ids.append_input.text = self.shared_text
+            self.shared_text = None
+        else:
+            self.root.ids.append_input.text = ""
+
         self.root.ids.append_input.focus = True
 
-    def do_add(self, **args):
+    def do_add(self, *kwargs):
         print(self.root.ids)
 
         if self.root.ids.append_input.text:
@@ -755,7 +765,7 @@ class MOrgApp(App):
         self._load_current_notes_items()
 
     def on_start(self):
-        pass
+        self.share_listener = ShareListener(text_callback=self.shareintent_text)
 
     def on_stop(self):
         pass

@@ -330,6 +330,7 @@ p4a.branch = develop
 
 # (str) extra command line arguments to pass when invoking pythonforandroid.toolchain
 #p4a.extra_args =
+android.manifest.intent_filters = intent_filter.xml
 
 
 #
