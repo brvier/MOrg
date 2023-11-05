@@ -34,9 +34,11 @@ from styles import GithubStyle, GruvboxDarkStyle
 from models import Item, Note, Journal, Event, Todo
 from ux import get_android_vkeyboard_height
 from kivy.factory import Factory
-from share_listener import ShareListener
 
 import pytodotxt
+
+if platform == "android":
+    from share_listener import ShareListener
 
 kivy.require("2.0.0")
 Window.softinput_mode = ""
@@ -346,7 +348,7 @@ class MOrgApp(App):
                 t = Todo(
                     task.description,
                     path=os.path.join(orgpath(), "todo.txt"),
-                    lineno=task.linenr + 1,
+                    lineno=task.linenr,
                     priority=task.priority,
                 )
                 if (t.priority is None) or (t.priority == "A"):
@@ -475,7 +477,8 @@ class MOrgApp(App):
                     open(
                         os.path.join(
                             orgpath(),
-                            "quicknote.txt",
+                            "notes",
+                            "quicknote.md",
                         ),
                         "a",
                     )
@@ -765,7 +768,8 @@ class MOrgApp(App):
         self._load_current_notes_items()
 
     def on_start(self):
-        self.share_listener = ShareListener(text_callback=self.shareintent_text)
+        if platform == 'android':
+            self.share_listener = ShareListener(text_callback=self.shareintent_text)
 
     def on_stop(self):
         pass
